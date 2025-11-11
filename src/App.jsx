@@ -3,46 +3,29 @@ import useEntriesStore from './stores/entries';
 import useAuthStore from './stores/auth';
 import useSettingsStore from './stores/settings';
 import VideoRecorder from './components/VideoRecorder';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 /**
  * Main App Component
- * 
- * This is the root component of our application.
- * Now includes the VideoRecorder component for testing real video recording.
+ * NOW USING SHADCN/UI WITH VIOLET THEME
  */
 function App() {
-  // ==================== STATE ====================
-  
   const [showRecorder, setShowRecorder] = useState(false);
-
-  // ==================== STORE DATA ====================
-  
   const { entries, addEntry, deleteEntry } = useEntriesStore();
   const { user, isAuthenticated, setAuth, logout } = useAuthStore();
   const { videoQuality, updateSetting } = useSettingsStore();
 
-  // ==================== INITIALIZATION ====================
-  
-  // Run once when app loads
-  // Why: Load saved auth, settings, AND entries from local storage
   useEffect(() => {
     const initialize = async () => {
-      // Try to restore user's logged-in session
       await useAuthStore.getState().loadAuth();
-      
-      // Load user's saved settings
       await useSettingsStore.getState().loadSettings();
-      
-      // Load user's saved journal entries
       await useEntriesStore.getState().loadEntries();
     };
-    
     initialize();
   }, []);
 
-  // ==================== TEST FUNCTIONS ====================
-
-  // Test function: Simulate user login
   const handleTestLogin = () => {
     setAuth(
       { id: '123', email: 'test@example.com', name: 'Test User' },
@@ -50,7 +33,6 @@ function App() {
     );
   };
 
-  // Test function: Add a dummy journal entry
   const handleAddTestEntry = () => {
     addEntry({
       id: Date.now().toString(),
@@ -65,7 +47,6 @@ function App() {
     });
   };
 
-  // Test function: Change video quality setting
   const handleChangeQuality = () => {
     const qualities = ['low', 'medium', 'high'];
     const currentIndex = qualities.indexOf(videoQuality);
@@ -73,165 +54,122 @@ function App() {
     updateSetting('videoQuality', qualities[nextIndex]);
   };
 
-  // ==================== RENDER ====================
-
   return (
-    <div style={styles.container}>
-      <h1>Video Journal</h1>
+    <div className="container mx-auto p-6 max-w-4xl">
+      <h1 className="text-4xl font-bold mb-8 text-center bg-gradient-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent">
+        Video Journal
+      </h1>
 
-      {/* Main Action: Record New Entry */}
-      <div style={styles.recordSection}>
-        <button 
-          onClick={() => setShowRecorder(true)} 
-          style={styles.recordMainButton}
+      {/* Main Record Button */}
+      <div className="text-center mb-8">
+        <Button 
+          size="lg"
+          onClick={() => setShowRecorder(true)}
+          className="text-lg px-8 py-6"
         >
           📹 Record New Entry
-        </button>
+        </Button>
       </div>
 
-      {/* Authentication Status */}
-      <div style={styles.section}>
-        <h2>Authentication</h2>
-        <p>Status: {isAuthenticated ? '✅ Logged In' : '❌ Not Logged In'}</p>
-        {user && (
-          <p>User: {user.name} ({user.email})</p>
-        )}
-        <button onClick={handleTestLogin} style={styles.button}>
-          Test Login
-        </button>
-        <button onClick={logout} style={styles.button}>
-          Logout
-        </button>
-      </div>
-
-      {/* Entries */}
-      <div style={styles.section}>
-        <h2>Journal Entries</h2>
-        <p>Total entries: {entries.length}</p>
-        <button onClick={handleAddTestEntry} style={styles.button}>
-          Add Test Entry
-        </button>
-        
-        {entries.length > 0 && (
-          <div style={styles.entriesList}>
-            {entries.map((entry) => (
-              <div key={entry.id} style={styles.entry}>
-                <div style={styles.entryHeader}>
-                  <strong>{new Date(entry.recordedAt).toLocaleString()}</strong>
-                  <button 
-                    onClick={() => deleteEntry(entry.id)}
-                    style={styles.deleteButton}
-                  >
-                    🗑️
-                  </button>
-                </div>
-                
-                {/* Show video player if entry has media URL */}
-                {entry.mediaUrl && entry.type === 'video' && (
-                  <video 
-                    src={entry.mediaUrl} 
-                    controls 
-                    style={styles.entryVideo}
-                  />
-                )}
-                
-                <p>{entry.transcription || 'No transcription yet'}</p>
-                <small>Duration: {entry.duration}s | Type: {entry.type}</small>
-              </div>
-            ))}
+      {/* Authentication Card */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Authentication</CardTitle>
+          <CardDescription>
+            Status: {isAuthenticated ? (
+              <Badge variant="default">✅ Logged In</Badge>
+            ) : (
+              <Badge variant="secondary">❌ Not Logged In</Badge>
+            )}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {user && (
+            <p className="mb-4">User: {user.name} ({user.email})</p>
+          )}
+          <div className="flex gap-2">
+            <Button onClick={handleTestLogin} variant="default">
+              Test Login
+            </Button>
+            <Button onClick={logout} variant="outline">
+              Logout
+            </Button>
           </div>
-        )}
-      </div>
+        </CardContent>
+      </Card>
 
-      {/* Settings */}
-      <div style={styles.section}>
-        <h2>Settings</h2>
-        <p>Video Quality: <strong>{videoQuality}</strong></p>
-        <button onClick={handleChangeQuality} style={styles.button}>
-          Change Quality
-        </button>
-      </div>
+      {/* Entries Card */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Journal Entries</CardTitle>
+          <CardDescription>Total entries: {entries.length}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button onClick={handleAddTestEntry} className="mb-4">
+            Add Test Entry
+          </Button>
+          
+          {entries.length > 0 && (
+            <div className="space-y-4">
+              {entries.map((entry) => (
+                <Card key={entry.id}>
+                  <CardContent className="pt-6">
+                    <div className="flex justify-between items-start mb-2">
+                      <strong className="text-sm">
+                        {new Date(entry.recordedAt).toLocaleString()}
+                      </strong>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => deleteEntry(entry.id)}
+                      >
+                        🗑️
+                      </Button>
+                    </div>
+                    
+                    {entry.mediaUrl && entry.type === 'video' && (
+                      <video 
+                        src={entry.mediaUrl} 
+                        controls 
+                        className="w-full rounded-md my-2"
+                      />
+                    )}
+                    
+                    <p className="text-sm text-muted-foreground mb-2">
+                      {entry.transcription || 'No transcription yet'}
+                    </p>
+                    <div className="flex gap-2">
+                      <Badge variant="secondary">{entry.duration}s</Badge>
+                      <Badge variant="outline">{entry.type}</Badge>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
-      {/* Video Recorder Modal */}
+      {/* Settings Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Settings</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="mb-4">
+            Video Quality: <Badge>{videoQuality}</Badge>
+          </p>
+          <Button onClick={handleChangeQuality} variant="outline">
+            Change Quality
+          </Button>
+        </CardContent>
+      </Card>
+
       {showRecorder && (
         <VideoRecorder onClose={() => setShowRecorder(false)} />
       )}
     </div>
   );
 }
-
-// ==================== STYLES ====================
-
-const styles = {
-  container: {
-    padding: '20px',
-    fontFamily: 'system-ui, -apple-system, sans-serif',
-    maxWidth: '800px',
-    margin: '0 auto',
-  },
-  recordSection: {
-    textAlign: 'center',
-    marginTop: '20px',
-    marginBottom: '30px',
-  },
-  recordMainButton: {
-    padding: '20px 40px',
-    fontSize: '20px',
-    fontWeight: '600',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    color: 'white',
-    border: 'none',
-    borderRadius: '12px',
-    cursor: 'pointer',
-    boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
-  },
-  section: {
-    marginTop: '30px',
-    padding: '20px',
-    background: '#f5f5f5',
-    borderRadius: '8px',
-  },
-  button: {
-    padding: '10px 20px',
-    marginRight: '10px',
-    marginTop: '10px',
-    cursor: 'pointer',
-    background: '#007bff',
-    color: 'white',
-    border: 'none',
-    borderRadius: '5px',
-    fontSize: '14px',
-  },
-  entriesList: {
-    marginTop: '15px',
-  },
-  entry: {
-    padding: '15px',
-    background: 'white',
-    borderRadius: '5px',
-    marginBottom: '10px',
-    border: '1px solid #ddd',
-  },
-  entryHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '10px',
-  },
-  entryVideo: {
-    width: '100%',
-    maxHeight: '300px',
-    borderRadius: '5px',
-    marginTop: '10px',
-    marginBottom: '10px',
-  },
-  deleteButton: {
-    background: 'none',
-    border: 'none',
-    fontSize: '18px',
-    cursor: 'pointer',
-    padding: '5px',
-  },
-};
 
 export default App;
