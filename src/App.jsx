@@ -1,21 +1,28 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import useEntriesStore from './stores/entries';
 import useAuthStore from './stores/auth';
 import useSettingsStore from './stores/settings';
+import VideoRecorder from './components/VideoRecorder';
 
 /**
  * Main App Component
  * 
  * This is the root component of our application.
- * Tests our state management stores to ensure they work correctly.
+ * Now includes the VideoRecorder component for testing real video recording.
  */
 function App() {
-  // Get state and actions from our stores
-  // Why: Zustand hooks give us access to state and functions from anywhere
-  const { entries, addEntry } = useEntriesStore();
+  // ==================== STATE ====================
+  
+  const [showRecorder, setShowRecorder] = useState(false);
+
+  // ==================== STORE DATA ====================
+  
+  const { entries, addEntry, deleteEntry } = useEntriesStore();
   const { user, isAuthenticated, setAuth, logout } = useAuthStore();
   const { videoQuality, updateSetting } = useSettingsStore();
 
+  // ==================== INITIALIZATION ====================
+  
   // Run once when app loads
   // Why: Load saved auth, settings, AND entries from local storage
   useEffect(() => {
@@ -32,6 +39,8 @@ function App() {
     
     initialize();
   }, []);
+
+  // ==================== TEST FUNCTIONS ====================
 
   // Test function: Simulate user login
   const handleTestLogin = () => {
@@ -64,9 +73,21 @@ function App() {
     updateSetting('videoQuality', qualities[nextIndex]);
   };
 
+  // ==================== RENDER ====================
+
   return (
     <div style={styles.container}>
-      <h1>Video Journal - Testing Stores</h1>
+      <h1>Video Journal</h1>
+
+      {/* Main Action: Record New Entry */}
+      <div style={styles.recordSection}>
+        <button 
+          onClick={() => setShowRecorder(true)} 
+          style={styles.recordMainButton}
+        >
+          📹 Record New Entry
+        </button>
+      </div>
 
       {/* Authentication Status */}
       <div style={styles.section}>
@@ -95,8 +116,26 @@ function App() {
           <div style={styles.entriesList}>
             {entries.map((entry) => (
               <div key={entry.id} style={styles.entry}>
-                <strong>{new Date(entry.recordedAt).toLocaleString()}</strong>
-                <p>{entry.transcription}</p>
+                <div style={styles.entryHeader}>
+                  <strong>{new Date(entry.recordedAt).toLocaleString()}</strong>
+                  <button 
+                    onClick={() => deleteEntry(entry.id)}
+                    style={styles.deleteButton}
+                  >
+                    🗑️
+                  </button>
+                </div>
+                
+                {/* Show video player if entry has media URL */}
+                {entry.mediaUrl && entry.type === 'video' && (
+                  <video 
+                    src={entry.mediaUrl} 
+                    controls 
+                    style={styles.entryVideo}
+                  />
+                )}
+                
+                <p>{entry.transcription || 'No transcription yet'}</p>
                 <small>Duration: {entry.duration}s | Type: {entry.type}</small>
               </div>
             ))}
@@ -112,18 +151,39 @@ function App() {
           Change Quality
         </button>
       </div>
+
+      {/* Video Recorder Modal */}
+      {showRecorder && (
+        <VideoRecorder onClose={() => setShowRecorder(false)} />
+      )}
     </div>
   );
 }
 
-// Inline styles for testing
-// Why: Quick styling without setting up CSS files yet
+// ==================== STYLES ====================
+
 const styles = {
   container: {
     padding: '20px',
     fontFamily: 'system-ui, -apple-system, sans-serif',
     maxWidth: '800px',
     margin: '0 auto',
+  },
+  recordSection: {
+    textAlign: 'center',
+    marginTop: '20px',
+    marginBottom: '30px',
+  },
+  recordMainButton: {
+    padding: '20px 40px',
+    fontSize: '20px',
+    fontWeight: '600',
+    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '12px',
+    cursor: 'pointer',
+    boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
   },
   section: {
     marginTop: '30px',
@@ -151,6 +211,26 @@ const styles = {
     borderRadius: '5px',
     marginBottom: '10px',
     border: '1px solid #ddd',
+  },
+  entryHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '10px',
+  },
+  entryVideo: {
+    width: '100%',
+    maxHeight: '300px',
+    borderRadius: '5px',
+    marginTop: '10px',
+    marginBottom: '10px',
+  },
+  deleteButton: {
+    background: 'none',
+    border: 'none',
+    fontSize: '18px',
+    cursor: 'pointer',
+    padding: '5px',
   },
 };
 
