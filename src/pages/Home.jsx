@@ -14,7 +14,7 @@ function Home() {
   return (
     <div className="pb-20 md:pb-0">
       
-      <div className="md:hidden sticky top-0 bg-card border-b border-border z-10 px-4 py-3">
+      <div className="md:hidden top-0 bg-card border-b border-border z-10 px-4 py-3">
         <h1 className="text-xl font-bold bg-gradient-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent">
           Video Journal
         </h1>

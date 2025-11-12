@@ -27,7 +27,7 @@ function Entries() {
     <div className="pb-20 md:pb-0">
       
       {/* Header - Mobile */}
-      <div className="md:hidden sticky top-0 bg-white border-b border-gray-200 z-10 px-4 py-3">
+      <div className="md:hidden sticky top-0 bg-card border-b border-border z-10 px-4 py-3">
         <h1 className="text-xl font-bold">All Entries</h1>
         <p className="text-sm text-gray-600">{entries.length} total</p>
       </div>
