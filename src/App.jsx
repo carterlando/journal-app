@@ -18,9 +18,20 @@ function App() {
   
   useEffect(() => {
     const initialize = async () => {
-      await useAuthStore.getState().loadAuth();
-      await useSettingsStore.getState().loadSettings();
-      await useEntriesStore.getState().loadEntries();
+      try {
+        // Initialize IndexedDB storage FIRST
+        const { storage } = await import('./services/storage');
+        await storage.init();
+        console.log('IndexedDB initialized');
+        
+        // Then load data from stores
+        await useAuthStore.getState().loadAuth();
+        await useSettingsStore.getState().loadSettings();
+        await useEntriesStore.getState().loadEntries();
+        console.log('Stores loaded');
+      } catch (error) {
+        console.error('Initialization error:', error);
+      }
     };
     initialize();
   }, []);

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { Plus, Trash2 } from 'lucide-react';
+import VideoPlayer from '../components/VideoPlayer';
 
 function Home() {
   const [showRecorder, setShowRecorder] = useState(false);
@@ -71,12 +72,11 @@ function Home() {
                 </Button>
               </div>
 
-              {entry.mediaUrl && entry.type === 'video' && (
-                <video 
-                  src={entry.mediaUrl} 
-                  controls 
-                  className="w-full rounded-lg mb-3"
-                  playsInline
+              {/* Video - Full width on mobile */}
+              {entry.type === 'video' && (
+                <VideoPlayer 
+                  videoId={entry.mediaUrl}
+                  className="w-full"
                 />
               )}
 

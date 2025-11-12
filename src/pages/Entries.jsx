@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { format } from 'date-fns';
 import { Plus, Search, Trash2 } from 'lucide-react';
+import VideoPlayer from '../components/VideoPlayer';
 
 /**
  * Entries Page
@@ -66,17 +67,8 @@ function Entries() {
               <div key={entry.id} className="bg-card p-4 flex gap-3">
                 
                 {/* Thumbnail */}
-                <div className="w-20 h-20 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden">
-                  {entry.mediaUrl && entry.type === 'video' ? (
-                    <video 
-                      src={entry.mediaUrl}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-2xl">
-                      🎤
-                    </div>
-                  )}
+                <div className="w-20 h-20 flex-shrink-0 bg-muted rounded-md overflow-hidden">
+                  <VideoPlayer videoId={entry.mediaUrl} className="w-full h-full object-cover" />
                 </div>
 
                 {/* Content */}
@@ -115,16 +107,7 @@ function Entries() {
                 className="bg-card border border-border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow"
               >
                 {/* Video Thumbnail */}
-                {entry.mediaUrl && entry.type === 'video' ? (
-                  <video 
-                    src={entry.mediaUrl}
-                    className="w-full h-48 object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-48 bg-muted flex items-center justify-center text-4xl">
-                    🎤
-                  </div>
-                )}
+                <VideoPlayer videoId={entry.mediaUrl} className="w-full" />
 
                 {/* Content */}
                 <div className="p-4">

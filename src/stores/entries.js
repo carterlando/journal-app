@@ -114,18 +114,28 @@ const useEntriesStore = create((set, get) => ({
 
   /**
    * Delete an entry
-   * Removes from local state AND local storage
-   * Should also delete from backend when we add the API
+   * Removes from local state, localStorage, AND IndexedDB
    * 
    * @param {string} id - Entry ID to delete
    */
   deleteEntry: async (id) => {
+    // Remove from state
     set((state) => ({
       entries: state.entries.filter((entry) => entry.id !== id),
     }));
     
-    // Save to local storage after deleting
+    // Save to localStorage
     await get()._saveToLocal();
+    
+    // Delete video blob from IndexedDB
+    try {
+      const { storage } = await import('../services/storage');
+      if (storage.db) {
+        await storage.deleteVideo(id);
+      }
+    } catch (error) {
+      console.error('Failed to delete video from IndexedDB:', error);
+    }
   },
 
   /**

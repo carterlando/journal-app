@@ -175,7 +175,7 @@ function VideoRecorder({ onClose }) {
 
   /**
    * Save the recorded video as a journal entry
-   * Creates entry object and adds to store
+   * Stores video blob in IndexedDB for persistence
    */
   const saveRecording = async () => {
     if (!recordedBlob) return;
@@ -184,10 +184,18 @@ function VideoRecorder({ onClose }) {
       // Create unique ID for this entry
       const entryId = Date.now().toString();
       
-      // Create object URL for local playback
-      // Why: We don't have backend yet, so store blob URL temporarily
-      // Later: This will upload to cloud storage and get real URL
-      const mediaUrl = recordedUrl;
+      // Import storage service
+      const { storage } = await import('../services/storage');
+      
+      // Initialize storage if not already done
+      if (!storage.db) {
+        await storage.init();
+      }
+      
+      // Save video blob to IndexedDB
+      await storage.saveVideo(entryId, recordedBlob);
+      
+      console.log('Video saved to IndexedDB:', entryId);
 
       // Create journal entry object
       const entry = {
@@ -196,22 +204,20 @@ function VideoRecorder({ onClose }) {
         recordedAt: new Date().toISOString(),
         type: audioOnly ? 'audio' : 'video',
         duration: duration,
-        mediaUrl: mediaUrl,
-        thumbnailUrl: null, // Will generate when we add backend
-        transcription: '', // Will transcribe when we add backend
+        mediaUrl: entryId, // Store ID instead of blob URL
+        thumbnailUrl: null,
+        transcription: '',
         tags: [],
-        isUploading: false,
-        uploadProgress: 0,
       };
 
-      // Add to store (automatically persists to local storage)
+      // Add to store (saves metadata to localStorage)
       await addEntry(entry);
 
       // Close recorder
       onClose();
     } catch (err) {
       console.error('Save error:', err);
-      setError('Could not save recording');
+      setError('Could not save recording: ' + err.message);
     }
   };
 
