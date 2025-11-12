@@ -38,7 +38,7 @@ function Entries() {
       </div>
 
       {/* Search Bar */}
-      <div className="p-4 md:p-0 md:mb-6 bg-white md:bg-transparent border-b md:border-0 border-gray-200">
+      <div className="p-4 md:p-0 md:mb-6 bg-card md:bg-transparent border-b md:border-0 border-border">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
           <Input
@@ -63,7 +63,7 @@ function Entries() {
           {/* Mobile: List View */}
           <div className="md:hidden divide-y divide-gray-200">
             {filteredEntries.map((entry) => (
-              <div key={entry.id} className="bg-white p-4 flex gap-3">
+              <div key={entry.id} className="bg-card p-4 flex gap-3">
                 
                 {/* Thumbnail */}
                 <div className="w-20 h-20 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden">
@@ -112,7 +112,7 @@ function Entries() {
             {filteredEntries.map((entry) => (
               <div 
                 key={entry.id} 
-                className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+                className="bg-card border border-border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow"
               >
                 {/* Video Thumbnail */}
                 {entry.mediaUrl && entry.type === 'video' ? (
@@ -121,7 +121,7 @@ function Entries() {
                     className="w-full h-48 object-cover"
                   />
                 ) : (
-                  <div className="w-full h-48 bg-gray-100 flex items-center justify-center text-4xl">
+                  <div className="w-full h-48 bg-muted flex items-center justify-center text-4xl">
                     🎤
                   </div>
                 )}
