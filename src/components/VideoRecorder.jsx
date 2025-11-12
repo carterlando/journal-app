@@ -344,7 +344,7 @@ const styles = {
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    backgroundColor: 'rgba(0, 0, 0, 0.95)', // Darker for mobile
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -352,10 +352,11 @@ const styles = {
   },
   container: {
     backgroundColor: 'white',
-    borderRadius: '12px',
-    width: '90%',
-    maxWidth: '600px',
-    maxHeight: '90vh',
+    borderRadius: '0', // Full screen on mobile
+    width: '100%',
+    height: '100%', // Full height
+    maxWidth: '100%',
+    maxHeight: '100%',
     overflow: 'hidden',
     display: 'flex',
     flexDirection: 'column',
