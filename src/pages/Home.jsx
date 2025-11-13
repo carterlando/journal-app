@@ -24,9 +24,9 @@ function Home() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4">
       {/* Page Header - Mobile */}
-      <div className="md:hidden sticky top-0 bg-card border-b border-border z-10 px-4 py-3">
+      <div className="md:hidden top-0 bg-card border-b border-border z-10 px-4 py-3">
         <h1 className="text-xl font-bold text-foreground">Your Journal</h1>
       </div>
 
@@ -116,7 +116,9 @@ function Home() {
           )}
         </div>
       )}
+    <div className="md:hidden h-16"></div>
     </div>
+    
   );
 }
 

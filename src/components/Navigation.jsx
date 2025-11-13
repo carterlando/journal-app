@@ -5,8 +5,8 @@ import { Home, Grid, Settings } from 'lucide-react';
  * Navigation Component
  * 
  * Instagram-style navigation:
- * - Mobile: Bottom bar with icons
- * - Tablet/Desktop: Left sidebar
+ * - Mobile: Bottom bar with icons (with blur)
+ * - Tablet/Desktop: Left sidebar (no blur)
  */
 function Navigation() {
   const location = useLocation();
@@ -33,12 +33,12 @@ function Navigation() {
 
   return (
     <>
-      {/* Desktop/Tablet Sidebar - Left */}
-      <aside className="hidden md:flex md:flex-col md:fixed md:left-0 md:top-0 md:h-screen md:w-64 lg:w-72 md:border-r md:border-border md:bg-card/95 md:backdrop-blur-sm md:z-40">
+      {/* Desktop/Tablet Sidebar - Left (no blur) */}
+      <aside className="hidden md:flex md:flex-col md:fixed md:left-0 md:top-0 md:h-screen md:w-64 lg:w-72 md:border-r md:border-border md:bg-card md:z-40">
         <div className="flex flex-col h-full p-6">
           {/* Logo */}
           <Link to="/" className="mb-8">
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-primary via-purple-500 to-pink-500 bg-clip-text text-transparent">
+            <h1 className="text-2xl font-bold text-violet-600 dark:text-violet-400">
               Video Journal
             </h1>
           </Link>
@@ -68,7 +68,7 @@ function Navigation() {
         </div>
       </aside>
 
-      {/* Mobile Bottom Navigation */}
+      {/* Mobile Bottom Navigation (with blur) */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-sm border-t border-border z-40">
         <div className="flex justify-around">
           <Link to="/" className={mobileNavClass('/')}>
@@ -85,9 +85,6 @@ function Navigation() {
           </Link>
         </div>
       </div>
-
-      {/* Mobile padding spacer */}
-      <div className="md:hidden h-16"></div>
     </>
   );
 }

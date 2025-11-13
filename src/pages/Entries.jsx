@@ -18,8 +18,8 @@ function Entries() {
 
   return (
     <>
-      {/* Mobile Header - sticky */}
-      <div className="md:hidden sticky top-0 bg-card border-b border-border z-10 px-4 py-3">
+      {/* Mobile Header */}
+      <div className="md:hidden top-0 bg-card border-b border-border z-10 px-4 py-3">
         <h1 className="text-xl font-bold text-foreground">All Entries</h1>
       </div>
 
@@ -82,7 +82,7 @@ function Entries() {
       )}
 
       {/* Mobile View - Always list style */}
-      <div className="md:hidden space-y-0">
+      <div className="md:hidden space-y-0 p-4">
         {filteredEntries.map((entry) => (
           <div 
             key={entry.id}

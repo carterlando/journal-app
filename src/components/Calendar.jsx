@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 /**
  * Calendar Component
  * 
- * Colorful, professional calendar with entry indicators
+ * Colorful calendar with consistent cell heights
  */
 function Calendar({ onDayClick }) {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -34,7 +34,6 @@ function Calendar({ onDayClick }) {
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
   const today = new Date();
-  const todayKey = `${today.getFullYear()}-${today.getMonth()}-${today.getDate()}`;
 
   const firstDayOfMonth = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -112,11 +111,11 @@ function Calendar({ onDayClick }) {
 
   return (
     <div className="space-y-6">
-      {/* Calendar Header with gradient */}
-      <div className="bg-gradient-to-r from-primary/10 via-purple-500/10 to-pink-500/10 rounded-xl p-6 border border-border">
+      {/* Calendar Header */}
+      <div className="bg-violet-500/15 rounded-xl p-6 border-2 border-violet-500/30">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-3xl font-bold bg-gradient-to-r from-primary via-purple-500 to-pink-500 bg-clip-text text-transparent">
+            <h2 className="text-3xl font-bold text-violet-600 dark:text-violet-400">
               {monthNames[month]}
             </h2>
             <p className="text-lg text-muted-foreground mt-1">{year}</p>
@@ -126,7 +125,7 @@ function Calendar({ onDayClick }) {
               variant="outline"
               size="icon"
               onClick={previousMonth}
-              className="hover:bg-primary/10 hover:border-primary/50"
+              className="hover:bg-violet-500/20 hover:border-violet-500/50 hover:text-violet-600"
             >
               <ChevronLeft className="h-5 w-5" />
             </Button>
@@ -134,7 +133,7 @@ function Calendar({ onDayClick }) {
               variant="outline"
               size="icon"
               onClick={nextMonth}
-              className="hover:bg-primary/10 hover:border-primary/50"
+              className="hover:bg-violet-500/20 hover:border-violet-500/50 hover:text-violet-600"
             >
               <ChevronRight className="h-5 w-5" />
             </Button>
@@ -143,13 +142,13 @@ function Calendar({ onDayClick }) {
       </div>
 
       {/* Calendar Grid */}
-      <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
-        {/* Day Names Header with gradient */}
-        <div className="grid grid-cols-7 bg-gradient-to-r from-primary/5 via-purple-500/5 to-pink-500/5 border-b border-border">
+      <div className="bg-card rounded-xl border-2 border-border overflow-hidden shadow-lg">
+        {/* Day Names Header */}
+        <div className="grid grid-cols-7 bg-violet-500/10 border-b-2 border-border">
           {dayNames.map(day => (
             <div
               key={day}
-              className="text-center py-4 text-sm font-bold text-foreground"
+              className="text-center py-4 text-sm font-bold text-violet-600 dark:text-violet-400"
             >
               {day}
             </div>
@@ -170,11 +169,10 @@ function Calendar({ onDayClick }) {
                 key={index}
                 onClick={() => handleDayClick(day)}
                 className={`
-                  aspect-square border-r border-b border-border/50 p-3 flex flex-col items-center justify-center transition-all
-                  ${day ? 'cursor-pointer hover:bg-gradient-to-br hover:from-primary/10 hover:to-purple-500/10 hover:scale-105 hover:shadow-md hover:z-10' : 'bg-muted/30'}
-                  ${isTodayDate ? 'bg-gradient-to-br from-primary/20 to-purple-500/20 ring-2 ring-primary/50 relative' : ''}
-                  ${isPastDate && hasEntriesDate ? 'bg-gradient-to-br from-green-500/10 to-emerald-500/10' : ''}
-                  ${isPastDate && !hasEntriesDate ? 'bg-muted/50' : ''}
+                  h-24 md:h-28 lg:h-32 border-r border-b border-border/50 p-3 flex flex-col items-center justify-center transition-all
+                  ${day ? 'cursor-pointer hover:bg-violet-500/15 hover:scale-105 hover:shadow-md hover:z-10' : 'bg-muted/40'}
+                  ${isTodayDate ? 'bg-violet-500/20 ring-2 ring-violet-500 relative' : ''}
+                  ${isPastDate && hasEntriesDate ? 'bg-emerald-500/15' : ''}
                 `}
               >
                 {day && (
@@ -182,16 +180,17 @@ function Calendar({ onDayClick }) {
                     {/* Today badge */}
                     {isTodayDate && (
                       <div className="absolute top-1 right-1">
-                        <div className="w-2 h-2 rounded-full bg-gradient-to-r from-primary to-purple-500 animate-pulse"></div>
+                        <div className="w-2 h-2 rounded-full bg-violet-500 animate-pulse"></div>
                       </div>
                     )}
 
                     {/* Day Number */}
                     <div className={`
                       text-sm font-bold mb-2
-                      ${isTodayDate ? 'text-primary text-lg' : ''}
-                      ${isPastDate ? 'text-foreground' : ''}
-                      ${isFutureDate ? 'text-muted-foreground' : ''}
+                      ${isTodayDate ? 'text-violet-600 dark:text-violet-400 text-lg' : ''}
+                      ${isPastDate && hasEntriesDate ? 'text-emerald-600 dark:text-emerald-400' : ''}
+                      ${isPastDate && !hasEntriesDate ? 'text-foreground' : ''}
+                      ${isFutureDate ? 'text-foreground' : ''}
                     `}>
                       {day}
                     </div>
@@ -199,31 +198,31 @@ function Calendar({ onDayClick }) {
                     {/* Day Indicator */}
                     <div>
                       {isTodayDate && (
-                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary via-purple-500 to-pink-500 text-white flex items-center justify-center shadow-lg hover:shadow-xl transition-shadow animate-pulse-subtle">
+                        <div className="w-12 h-12 rounded-full bg-violet-500 hover:bg-violet-600 text-white flex items-center justify-center shadow-lg hover:shadow-xl transition-all">
                           <Plus className="w-6 h-6" />
                         </div>
                       )}
                       {isPastDate && hasEntriesDate && (
                         <div className="flex flex-col items-center gap-1">
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 text-white flex items-center justify-center shadow-md">
+                          <div className="w-10 h-10 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white flex items-center justify-center shadow-md transition-colors">
                             <Check className="w-5 h-5" />
                           </div>
                           {entryCount > 1 && (
                             <div className="flex gap-0.5">
                               {Array.from({ length: Math.min(entryCount, 3) }).map((_, i) => (
-                                <div key={i} className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
+                                <div key={i} className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
                               ))}
                             </div>
                           )}
                         </div>
                       )}
                       {isPastDate && !hasEntriesDate && (
-                        <div className="w-10 h-10 rounded-full bg-muted/80 text-muted-foreground flex items-center justify-center border-2 border-dashed border-muted-foreground/30">
+                        <div className="w-10 h-10 rounded-full text-red-600 dark:text-red-400 flex items-center justify-center border-2 border-dashed border-red-600 dark:border-red-400">
                           <X className="w-5 h-5" />
                         </div>
                       )}
                       {isFutureDate && (
-                        <div className="w-10 h-10 rounded-full bg-muted/50 text-muted-foreground/50 flex items-center justify-center border border-dashed border-muted-foreground/20">
+                        <div className="w-10 h-10 opacity-0">
                           <Video className="w-4 h-4" />
                         </div>
                       )}
@@ -239,20 +238,20 @@ function Calendar({ onDayClick }) {
       {/* Legend */}
       <div className="flex flex-wrap gap-4 justify-center text-sm">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-full bg-violet-500 flex items-center justify-center shadow-sm">
             <Plus className="w-4 h-4 text-white" />
           </div>
           <span className="text-muted-foreground">Today - Tap to record</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center shadow-sm">
             <Check className="w-4 h-4 text-white" />
           </div>
           <span className="text-muted-foreground">Has entries</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-muted/80 flex items-center justify-center border-2 border-dashed border-muted-foreground/30">
-            <X className="w-4 h-4 text-muted-foreground" />
+          <div className="w-8 h-8 rounded-full flex items-center justify-center border-2 border-dashed border-red-600">
+            <X className="w-4 h-4 text-red-600" />
           </div>
           <span className="text-muted-foreground">No entries</span>
         </div>
