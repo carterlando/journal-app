@@ -54,7 +54,7 @@ function Settings() {
         )}
 
         {/* Theme */}
-        <Card className="p-4 md:p-6 dark:bg-gray-900 dark:border-gray-800">
+        <Card className="p-4 md:p-6 dark:border-gray-800">
           <h2 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-3 md:text-base">APPEARANCE</h2>
           
           <button
@@ -82,7 +82,7 @@ function Settings() {
         </Card>
 
         {/* Recording Settings */}
-        <Card className="p-4 md:p-6 dark:bg-gray-900 dark:border-gray-800">
+        <Card className="p-4 md:p-6 dark:border-gray-800">
           <h2 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-3 md:text-base">RECORDING</h2>
           
           <div className="mb-4 md:mb-6">
@@ -131,7 +131,7 @@ function Settings() {
           >
             <span className="text-sm font-medium md:text-base dark:text-gray-200">Audio Only Mode</span>
             <div className={`w-12 h-6 rounded-full transition-colors ${
-              audioOnly ? 'bg-violet-600' : 'bg-gray-300 dark:bg-gray-700'
+              audioOnly ? 'bg-violet-600' : 'bg-gray-300 '
             }`}>
               <div className={`w-5 h-5 bg-white rounded-full mt-0.5 transition-transform ${
                 audioOnly ? 'ml-6' : 'ml-0.5'
@@ -141,7 +141,7 @@ function Settings() {
         </Card>
 
         {/* About */}
-        <Card className="p-4 md:p-6 dark:bg-gray-900 dark:border-gray-800">
+        <Card className="p-4 md:p-6 dark:border-gray-800">
           <h2 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-3 md:text-base">ABOUT</h2>
           <div className="space-y-2 text-sm">
             <p className="text-gray-600 dark:text-gray-400">Version 1.0.0</p>
