@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 /**
  * Calendar Component
  * 
- * Colorful calendar with consistent cell heights
+ * Compact calendar that fits on mobile screen
  */
 function Calendar({ onDayClick }) {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -107,55 +107,55 @@ function Calendar({ onDayClick }) {
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
 
-  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const dayNames = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
   return (
-    <div className="space-y-6">
-      {/* Calendar Header */}
-      <div className="bg-violet-500/15 rounded-xl p-6 border-2 border-violet-500/30">
+    <div className="space-y-3 md:space-y-6">
+      {/* Calendar Header - Compact on mobile */}
+      <div className="bg-violet-500/15 rounded-lg md:rounded-xl p-3 md:p-6 border-2 border-violet-500/30">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-3xl font-bold text-violet-600 dark:text-violet-400">
+            <h2 className="text-xl md:text-3xl font-bold text-violet-600 dark:text-violet-400">
               {monthNames[month]}
             </h2>
-            <p className="text-lg text-muted-foreground mt-1">{year}</p>
+            <p className="text-sm md:text-lg text-muted-foreground">{year}</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-1 md:gap-2">
             <Button
               variant="outline"
               size="icon"
               onClick={previousMonth}
-              className="hover:bg-violet-500/20 hover:border-violet-500/50 hover:text-violet-600"
+              className="h-8 w-8 md:h-10 md:w-10 hover:bg-violet-500/20 hover:border-violet-500/50 hover:text-violet-600"
             >
-              <ChevronLeft className="h-5 w-5" />
+              <ChevronLeft className="h-4 w-4 md:h-5 md:w-5" />
             </Button>
             <Button
               variant="outline"
               size="icon"
               onClick={nextMonth}
-              className="hover:bg-violet-500/20 hover:border-violet-500/50 hover:text-violet-600"
+              className="h-8 w-8 md:h-10 md:w-10 hover:bg-violet-500/20 hover:border-violet-500/50 hover:text-violet-600"
             >
-              <ChevronRight className="h-5 w-5" />
+              <ChevronRight className="h-4 w-4 md:h-5 md:w-5" />
             </Button>
           </div>
         </div>
       </div>
 
       {/* Calendar Grid */}
-      <div className="bg-card rounded-xl border-2 border-border overflow-hidden shadow-lg">
-        {/* Day Names Header */}
+      <div className="bg-card rounded-lg md:rounded-xl border-2 border-border overflow-hidden shadow-lg">
+        {/* Day Names Header - Compact on mobile */}
         <div className="grid grid-cols-7 bg-violet-500/10 border-b-2 border-border">
           {dayNames.map(day => (
             <div
               key={day}
-              className="text-center py-4 text-sm font-bold text-violet-600 dark:text-violet-400"
+              className="text-center py-2 md:py-4 text-xs md:text-sm font-bold text-violet-600 dark:text-violet-400"
             >
               {day}
             </div>
           ))}
         </div>
 
-        {/* Calendar Days */}
+        {/* Calendar Days - Much smaller on mobile */}
         <div className="grid grid-cols-7">
           {calendarDays.map((day, index) => {
             const isTodayDate = day && isToday(day);
@@ -169,25 +169,25 @@ function Calendar({ onDayClick }) {
                 key={index}
                 onClick={() => handleDayClick(day)}
                 className={`
-                  h-24 md:h-28 lg:h-32 border-r border-b border-border/50 p-3 flex flex-col items-center justify-center transition-all
-                  ${day ? 'cursor-pointer hover:bg-violet-500/15 hover:scale-105 hover:shadow-md hover:z-10' : 'bg-muted/40'}
-                  ${isTodayDate ? 'bg-violet-500/20 ring-2 ring-violet-500 relative' : ''}
+                  h-14 md:h-24 lg:h-28 border-r border-b border-border/50 p-1 md:p-3 flex flex-col items-center justify-center transition-all
+                  ${day ? 'cursor-pointer hover:bg-violet-500/15 md:hover:scale-105 hover:shadow-md hover:z-10' : 'bg-muted/40'}
+                  ${isTodayDate ? 'bg-violet-500/20 ring-1 md:ring-2 ring-violet-500 relative' : ''}
                   ${isPastDate && hasEntriesDate ? 'bg-emerald-500/15' : ''}
                 `}
               >
                 {day && (
                   <>
-                    {/* Today badge */}
+                    {/* Today badge - smaller on mobile */}
                     {isTodayDate && (
-                      <div className="absolute top-1 right-1">
-                        <div className="w-2 h-2 rounded-full bg-violet-500 animate-pulse"></div>
+                      <div className="absolute top-0.5 right-0.5 md:top-1 md:right-1">
+                        <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-violet-500 animate-pulse"></div>
                       </div>
                     )}
 
-                    {/* Day Number */}
+                    {/* Day Number - smaller on mobile */}
                     <div className={`
-                      text-sm font-bold mb-2
-                      ${isTodayDate ? 'text-violet-600 dark:text-violet-400 text-lg' : ''}
+                      text-xs md:text-sm font-bold mb-1 md:mb-2
+                      ${isTodayDate ? 'text-violet-600 dark:text-violet-400 md:text-lg' : ''}
                       ${isPastDate && hasEntriesDate ? 'text-emerald-600 dark:text-emerald-400' : ''}
                       ${isPastDate && !hasEntriesDate ? 'text-foreground' : ''}
                       ${isFutureDate ? 'text-foreground' : ''}
@@ -195,20 +195,27 @@ function Calendar({ onDayClick }) {
                       {day}
                     </div>
 
-                    {/* Day Indicator */}
+                    {/* Day Indicator - smaller on mobile */}
                     <div>
                       {isTodayDate && (
-                        <div className="w-12 h-12 rounded-full bg-violet-500 hover:bg-violet-600 text-white flex items-center justify-center shadow-lg hover:shadow-xl transition-all">
-                          <Plus className="w-6 h-6" />
+                        <div className="w-6 h-6 md:w-12 md:h-12 rounded-full bg-violet-500 hover:bg-violet-600 text-white flex items-center justify-center shadow-md md:shadow-lg hover:shadow-xl transition-all">
+                          <Plus className="w-3 h-3 md:w-6 md:h-6" />
                         </div>
                       )}
                       {isPastDate && hasEntriesDate && (
-                        <div className="flex flex-col items-center gap-1">
-                          <div className="w-10 h-10 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white flex items-center justify-center shadow-md transition-colors">
-                            <Check className="w-5 h-5" />
+                        <div className="flex flex-col items-center gap-0.5 md:gap-1">
+                          <div className="w-6 h-6 md:w-10 md:h-10 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white flex items-center justify-center shadow-sm md:shadow-md transition-colors">
+                            <Check className="w-3 h-3 md:w-5 md:h-5" />
                           </div>
                           {entryCount > 1 && (
-                            <div className="flex gap-0.5">
+                            <div className="flex gap-0.5 md:hidden">
+                              {Array.from({ length: Math.min(entryCount, 3) }).map((_, i) => (
+                                <div key={i} className="w-1 h-1 rounded-full bg-emerald-500"></div>
+                              ))}
+                            </div>
+                          )}
+                          {entryCount > 1 && (
+                            <div className="hidden md:flex gap-0.5">
                               {Array.from({ length: Math.min(entryCount, 3) }).map((_, i) => (
                                 <div key={i} className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
                               ))}
@@ -217,13 +224,13 @@ function Calendar({ onDayClick }) {
                         </div>
                       )}
                       {isPastDate && !hasEntriesDate && (
-                        <div className="w-10 h-10 rounded-full text-red-600 dark:text-red-400 flex items-center justify-center border-2 border-dashed border-red-600 dark:border-red-400">
-                          <X className="w-5 h-5" />
+                        <div className="w-6 h-6 md:w-10 md:h-10 rounded-full text-red-600 dark:text-red-400 flex items-center justify-center border border-dashed md:border-2 border-red-600 dark:border-red-400">
+                          <X className="w-3 h-3 md:w-5 md:h-5" />
                         </div>
                       )}
                       {isFutureDate && (
-                        <div className="w-10 h-10 opacity-0">
-                          <Video className="w-4 h-4" />
+                        <div className="w-6 h-6 md:w-10 md:h-10 opacity-0">
+                          <Video className="w-3 h-3 md:w-4 md:h-4" />
                         </div>
                       )}
                     </div>
@@ -235,8 +242,8 @@ function Calendar({ onDayClick }) {
         </div>
       </div>
 
-      {/* Legend */}
-      <div className="flex flex-wrap gap-4 justify-center text-sm">
+      {/* Legend - Hidden on mobile, shown on desktop */}
+      <div className="hidden md:flex flex-wrap gap-4 justify-center text-sm">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-full bg-violet-500 flex items-center justify-center shadow-sm">
             <Plus className="w-4 h-4 text-white" />
