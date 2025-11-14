@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { getCurrentUser, getSession, signOut, onAuthStateChange } from '../services/auth';
+import useEntriesStore from './entries';
 
 /**
  * Auth Store
@@ -41,6 +42,14 @@ const useAuthStore = create((set) => ({
           session,
           isAuthenticated: !!session,
         });
+        
+        // Load entries when user logs in
+        if (session) {
+          useEntriesStore.getState().loadEntries();
+        } else {
+          // Clear entries when user logs out
+          useEntriesStore.getState().clearEntries();
+        }
       });
     } catch (error) {
       // Silently handle missing session on first load
@@ -64,6 +73,10 @@ const useAuthStore = create((set) => ({
   logout: async () => {
     try {
       await signOut();
+      
+      // Clear entries when logging out
+      useEntriesStore.getState().clearEntries();
+      
       set({
         user: null,
         session: null,

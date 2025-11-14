@@ -1,111 +1,82 @@
-import { create } from 'zustand';
-import { getCurrentUser, getSession, signOut, onAuthStateChange } from '../services/auth';
-import useEntriesStore from './entries';
+import { supabase } from './supabase';
 
 /**
- * Auth Store
+ * Authentication Service
  * 
- * Manages authentication state using Supabase
+ * Handles user signup, login, logout
+ * Uses Supabase Auth
  */
 
-const useAuthStore = create((set) => ({
-  user: null,
-  session: null,
-  loading: true,
-  isAuthenticated: false,
+/**
+ * Sign up with email and password
+ * 
+ * @param {string} email - User email
+ * @param {string} password - User password
+ * @returns {Promise<{user, session}>}
+ */
+export const signUp = async (email, password) => {
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+  });
 
-  /**
-   * Initialize auth state
-   * Checks for existing session and sets up listener
-   */
-  initialize: async () => {
-    try {
-      const session = await getSession();
-      
-      // Only get user if session exists
-      let user = null;
-      if (session) {
-        user = await getCurrentUser();
-      }
+  if (error) throw error;
+  return data;
+};
 
-      set({
-        user,
-        session,
-        isAuthenticated: !!session,
-        loading: false,
-      });
+/**
+ * Sign in with email and password
+ * 
+ * @param {string} email - User email
+ * @param {string} password - User password
+ * @returns {Promise<{user, session}>}
+ */
+export const signIn = async (email, password) => {
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
 
-      // Listen for auth changes
-      onAuthStateChange((event, session) => {
-        set({
-          user: session?.user || null,
-          session,
-          isAuthenticated: !!session,
-        });
-        
-        // Load entries when user logs in
-        if (session) {
-          useEntriesStore.getState().loadEntries();
-        } else {
-          // Clear entries when user logs out
-          useEntriesStore.getState().clearEntries();
-        }
-      });
-    } catch (error) {
-      // Silently handle missing session on first load
-      if (error.message?.includes('Auth session missing')) {
-        set({
-          user: null,
-          session: null,
-          isAuthenticated: false,
-          loading: false,
-        });
-      } else {
-        console.error('Auth initialization error:', error);
-        set({ loading: false });
-      }
-    }
-  },
+  if (error) throw error;
+  return data;
+};
 
-  /**
-   * Sign out user
-   */
-  logout: async () => {
-    try {
-      await signOut();
-      
-      // Clear entries when logging out
-      useEntriesStore.getState().clearEntries();
-      
-      set({
-        user: null,
-        session: null,
-        isAuthenticated: false,
-      });
-    } catch (error) {
-      console.error('Logout error:', error);
-    }
-  },
+/**
+ * Sign out current user
+ */
+export const signOut = async () => {
+  const { error } = await supabase.auth.signOut();
+  if (error) throw error;
+};
 
-  /**
-   * Refresh user data
-   */
-  refreshUser: async () => {
-    try {
-      const session = await getSession();
-      let user = null;
-      if (session) {
-        user = await getCurrentUser();
-      }
-      set({
-        user,
-        session,
-        isAuthenticated: !!session,
-      });
-    } catch (error) {
-      console.error('Refresh user error:', error);
-    }
-  },
-}));
+/**
+ * Get current session
+ * 
+ * @returns {Promise<Session|null>}
+ */
+export const getSession = async () => {
+  const { data: { session }, error } = await supabase.auth.getSession();
+  if (error) throw error;
+  return session;
+};
 
-export default useAuthStore;
+/**
+ * Get current user
+ * 
+ * @returns {Promise<User|null>}
+ */
+export const getCurrentUser = async () => {
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error) throw error;
+  return user;
+};
+
+/**
+ * Listen to auth state changes
+ * 
+ * @param {Function} callback - Called when auth state changes
+ * @returns {Object} Subscription object with unsubscribe method
+ */
+export const onAuthStateChange = (callback) => {
+  return supabase.auth.onAuthStateChange(callback);
+};
