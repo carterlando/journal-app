@@ -7,9 +7,7 @@ import AuthModal from './AuthModal';
 /**
  * Navigation Component
  * 
- * Instagram-style navigation:
- * - Mobile: Bottom bar with icons (Settings only when logged in)
- * - Tablet/Desktop: Left sidebar with auth status
+ * Only visible when user is authenticated
  */
 function Navigation() {
   const location = useLocation();
@@ -36,6 +34,11 @@ function Navigation() {
     }
   `;
 
+  // Don't show navigation if not authenticated
+  if (!isAuthenticated) {
+    return null;
+  }
+
   return (
     <>
       {/* Desktop/Tablet Sidebar - Left */}
@@ -58,41 +61,27 @@ function Navigation() {
               <Grid className="w-6 h-6" />
               <span className="text-base">All Entries</span>
             </Link>
-            {isAuthenticated && (
-              <Link to="/settings" className={sidebarNavClass('/settings')}>
-                <Settings className="w-6 h-6" />
-                <span className="text-base">Settings</span>
-              </Link>
-            )}
+            <Link to="/settings" className={sidebarNavClass('/settings')}>
+              <Settings className="w-6 h-6" />
+              <span className="text-base">Settings</span>
+            </Link>
           </nav>
 
           {/* Footer with Auth */}
           <div className="mt-auto pt-6 border-t border-border space-y-3">
-            {isAuthenticated ? (
-              <>
-                <div className="flex items-center gap-2 px-3 py-2 bg-primary/5 rounded-lg">
-                  <User className="w-4 h-4 text-primary" />
-                  <p className="text-xs text-foreground truncate flex-1">
-                    {user?.email}
-                  </p>
-                </div>
-                <button
-                  onClick={logout}
-                  className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg w-full transition-colors"
-                >
-                  <LogOut className="w-4 h-4" />
-                  Sign Out
-                </button>
-              </>
-            ) : (
-              <button
-                onClick={() => setShowAuthModal(true)}
-                className="flex items-center gap-2 px-3 py-2 text-sm text-primary hover:bg-primary/10 rounded-lg w-full transition-colors"
-              >
-                <LogIn className="w-4 h-4" />
-                Sign In
-              </button>
-            )}
+            <div className="flex items-center gap-2 px-3 py-2 bg-primary/5 rounded-lg">
+              <User className="w-4 h-4 text-primary" />
+              <p className="text-xs text-foreground truncate flex-1">
+                {user?.email}
+              </p>
+            </div>
+            <button
+              onClick={logout}
+              className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg w-full transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+              Sign Out
+            </button>
             <p className="text-xs text-muted-foreground text-center">
               © 2025 Video Journal
             </p>
@@ -111,24 +100,15 @@ function Navigation() {
             <Grid className="w-6 h-6" />
             <span className="text-xs mt-1">Entries</span>
           </Link>
-          
-          {/* Settings only visible when logged in on mobile */}
-          {isAuthenticated ? (
-            <Link to="/settings" className={mobileNavClass('/settings')}>
-              <Settings className="w-6 h-6" />
-              <span className="text-xs mt-1">Settings</span>
-            </Link>
-          ) : (
-            <button 
-              onClick={() => setShowAuthModal(true)}
-              className="flex flex-col items-center justify-center flex-1 py-2 transition-colors text-primary"
-            >
-              <LogIn className="w-6 h-6" />
-              <span className="text-xs mt-1">Sign In</span>
-            </button>
-          )}
+          <Link to="/settings" className={mobileNavClass('/settings')}>
+            <Settings className="w-6 h-6" />
+            <span className="text-xs mt-1">Settings</span>
+          </Link>
         </div>
       </div>
+
+      {/* Mobile padding spacer */}
+      <div className="md:hidden h-16"></div>
 
       {/* Auth Modal */}
       {showAuthModal && (
