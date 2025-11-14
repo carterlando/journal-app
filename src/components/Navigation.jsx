@@ -107,9 +107,6 @@ function Navigation() {
         </div>
       </div>
 
-      {/* Mobile padding spacer */}
-      <div className="md:hidden h-16"></div>
-
       {/* Auth Modal */}
       {showAuthModal && (
         <AuthModal
