@@ -41,7 +41,7 @@ function AuthModal({ onClose, onSuccess }) {
       onClick={onClose}
     >
       <Card 
-        className="w-full max-w-md bg-white dark:bg-slate-900 shadow-xl"
+        className="w-full max-w-md shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <CardHeader>
@@ -61,9 +61,12 @@ function AuthModal({ onClose, onSuccess }) {
             )}
 
             <div>
-              <label className="text-sm font-medium mb-2 block">Email</label>
+              <label htmlFor="email" className="text-sm font-medium mb-2 block">Email</label>
               <Input
+                id="email"
+                name="email"
                 type="email"
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
@@ -73,9 +76,12 @@ function AuthModal({ onClose, onSuccess }) {
             </div>
 
             <div>
-              <label className="text-sm font-medium mb-2 block">Password</label>
+              <label htmlFor="password" className="text-sm font-medium mb-2 block">Password</label>
               <Input
+                id="password"
+                name="password"
                 type="password"
+                autoComplete={isLogin ? "current-password" : "new-password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
