@@ -19,18 +19,25 @@ function App() {
   useEffect(() => {
     const initialize = async () => {
       try {
+        // Initialize IndexedDB storage (for temporary video storage only)
         const { storage } = await import('./services/storage');
         await storage.init();
         console.log('IndexedDB initialized');
         
+        // Initialize auth (Supabase)
         await useAuthStore.getState().initialize();
         console.log('Auth initialized');
         
+        // Load settings
         await useSettingsStore.getState().loadSettings();
         console.log('Settings loaded');
         
-        await useEntriesStore.getState().loadEntries();
-        console.log('Entries loaded');
+        // Load entries ONLY if authenticated
+        const { isAuthenticated } = useAuthStore.getState();
+        if (isAuthenticated) {
+          await useEntriesStore.getState().loadEntries();
+          console.log('Entries loaded');
+        }
       } catch (error) {
         console.error('Initialization error:', error);
       }
