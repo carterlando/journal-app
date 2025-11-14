@@ -1,134 +1,97 @@
 import { create } from 'zustand';
-import { platform } from '../adapters';
+import { getCurrentUser, getSession, signOut, onAuthStateChange } from '../services/auth';
 
 /**
- * Authentication Store
+ * Auth Store
  * 
- * Manages user authentication state and tokens.
- * Persists auth data to local storage so user stays logged in.
- * 
- * State structure:
- * - user: Current user object or null
- * - token: JWT token for API authentication
- * - isAuthenticated: Boolean for quick auth checks
- * - loading: Boolean for login/signup operations
+ * Manages authentication state using Supabase
  */
 
-const useAuthStore = create((set, get) => ({
-  // ==================== STATE ====================
-  
-  user: null,  // User object: { id, email, name, createdAt }
-  token: null,  // JWT token string
-  isAuthenticated: false,  // Quick check if user is logged in
-  loading: false,  // True during login/signup/logout
-
-  // ==================== ACTIONS ====================
+const useAuthStore = create((set) => ({
+  user: null,
+  session: null,
+  loading: true,
+  isAuthenticated: false,
 
   /**
-   * Set authenticated user and token
-   * Called after successful login or signup
-   * Persists to local storage so user stays logged in
-   * 
-   * @param {Object} user - User object from backend
-   * @param {string} token - JWT token
+   * Initialize auth state
+   * Checks for existing session and sets up listener
    */
-  setAuth: async (user, token) => {
-    // Save to state
-    set({
-      user,
-      token,
-      isAuthenticated: true,
-    });
-
-    // Persist to local storage using our platform adapter
-    // Why: So user doesn't have to login again when they close the app
+  initialize: async () => {
     try {
-      await platform.saveToLocal('auth', { user, token });
-    } catch (error) {
-      console.error('Failed to save auth to local storage:', error);
-    }
-  },
-
-  /**
-   * Load authentication from local storage
-   * Called on app startup to restore logged-in state
-   * 
-   * @returns {boolean} True if auth was restored, false otherwise
-   */
-  loadAuth: async () => {
-    try {
-      // Try to get saved auth from local storage
-      const auth = await platform.getFromLocal('auth');
+      const session = await getSession();
       
-      if (auth && auth.user && auth.token) {
+      // Only get user if session exists
+      let user = null;
+      if (session) {
+        user = await getCurrentUser();
+      }
+
+      set({
+        user,
+        session,
+        isAuthenticated: !!session,
+        loading: false,
+      });
+
+      // Listen for auth changes
+      onAuthStateChange((event, session) => {
         set({
-          user: auth.user,
-          token: auth.token,
-          isAuthenticated: true,
+          user: session?.user || null,
+          session,
+          isAuthenticated: !!session,
         });
-        return true;
-      }
+      });
     } catch (error) {
-      console.error('Failed to load auth from local storage:', error);
-    }
-    
-    return false;
-  },
-
-  /**
-   * Update user information
-   * Used when user changes their profile
-   * 
-   * @param {Object} updates - Fields to update on user object
-   */
-  updateUser: async (updates) => {
-    const currentUser = get().user;
-    const updatedUser = { ...currentUser, ...updates };
-    
-    set({ user: updatedUser });
-
-    // Update in local storage too
-    try {
-      const auth = await platform.getFromLocal('auth');
-      if (auth) {
-        await platform.saveToLocal('auth', {
-          ...auth,
-          user: updatedUser,
+      // Silently handle missing session on first load
+      if (error.message?.includes('Auth session missing')) {
+        set({
+          user: null,
+          session: null,
+          isAuthenticated: false,
+          loading: false,
         });
+      } else {
+        console.error('Auth initialization error:', error);
+        set({ loading: false });
       }
-    } catch (error) {
-      console.error('Failed to update user in local storage:', error);
     }
   },
 
   /**
-   * Logout user
-   * Clears all auth data from state and local storage
+   * Sign out user
    */
   logout: async () => {
-    // Clear state
-    set({
-      user: null,
-      token: null,
-      isAuthenticated: false,
-    });
-
-    // Clear from local storage
     try {
-      await platform.removeFromLocal('auth');
+      await signOut();
+      set({
+        user: null,
+        session: null,
+        isAuthenticated: false,
+      });
     } catch (error) {
-      console.error('Failed to remove auth from local storage:', error);
+      console.error('Logout error:', error);
     }
   },
 
   /**
-   * Set loading state
-   * Shows/hides loading spinner during auth operations
-   * 
-   * @param {boolean} loading - True to show loading, false to hide
+   * Refresh user data
    */
-  setLoading: (loading) => {
-    set({ loading });
+  refreshUser: async () => {
+    try {
+      const session = await getSession();
+      let user = null;
+      if (session) {
+        user = await getCurrentUser();
+      }
+      set({
+        user,
+        session,
+        isAuthenticated: !!session,
+      });
+    } catch (error) {
+      console.error('Refresh user error:', error);
+    }
   },
 }));
 

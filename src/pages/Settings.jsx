@@ -1,103 +1,116 @@
-import { useTheme } from 'next-themes';
 import useSettingsStore from '../stores/settings';
 import useAuthStore from '../stores/auth';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Moon, Sun } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Moon, Sun, LogOut, User } from 'lucide-react';
+import { useTheme } from 'next-themes';
 
+/**
+ * Settings Page
+ */
 function Settings() {
-  const { theme, setTheme } = useTheme();
   const { 
     videoQuality, 
     maxVideoDuration, 
     audioOnly,
     updateSetting 
   } = useSettingsStore();
-  
-  const { user, isAuthenticated, logout } = useAuthStore();
+
+  const { theme, setTheme } = useTheme();
+  const { isAuthenticated, user, logout } = useAuthStore();
 
   return (
-    <div className="pb-20 md:pb-0">
-      
-      <div className="md:hidden top-0 bg-card border-b border-border z-10 px-4 py-3">
+    <div className="space-y-6">
+      {/* Mobile Header */}
+      <div className="md:hidden sticky top-0 bg-card border-b border-border z-10 px-4 py-3">
         <h1 className="text-xl font-bold text-foreground">Settings</h1>
       </div>
 
-      <div className="hidden md:block mb-6">
-        <h1 className="text-3xl font-bold mb-2 dark:text-white">Settings</h1>
-        <p className="text-gray-600 dark:text-gray-400">Manage your preferences</p>
+      {/* Desktop Header */}
+      <div className="hidden md:block">
+        <h1 className="text-3xl font-bold text-foreground">Settings</h1>
+        <p className="text-muted-foreground">Manage your preferences</p>
       </div>
 
-      <div className="p-4 md:p-0 space-y-4 md:space-y-6">
-
-        {/* Account */}
-        {isAuthenticated && (
-          <Card className="p-4 md:p-6">
-            <h2 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-3 md:text-base">ACCOUNT</h2>
-            
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <p className="font-medium dark:text-white">{user?.name || 'User'}</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">{user?.email}</p>
+      {/* Account Section - Only show on mobile when authenticated */}
+      {isAuthenticated && (
+        <Card className="md:hidden">
+          <CardHeader>
+            <CardTitle>Account</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center gap-3 p-3 bg-primary/5 rounded-lg">
+              <User className="w-5 h-5 text-primary" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium">Signed in as</p>
+                <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
               </div>
             </div>
-
-            <Button 
-              variant="destructive" 
+            <Button
+              variant="outline"
               onClick={logout}
-              className="w-full md:w-auto"
+              className="w-full"
             >
-              Logout
+              <LogOut className="mr-2 h-4 w-4" />
+              Sign Out
             </Button>
-          </Card>
-        )}
-
-        {/* Theme */}
-        <Card className="p-4 md:p-6 dark:border-gray-800">
-          <h2 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-3 md:text-base">APPEARANCE</h2>
-          
-          <button
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            className="w-full flex items-center justify-between py-3"
-          >
-            <div className="flex items-center gap-3">
-              {theme === 'dark' ? (
-                <Moon className="w-5 h-5 dark:text-gray-300" />
-              ) : (
-                <Sun className="w-5 h-5" />
-              )}
-              <span className="text-sm font-medium md:text-base dark:text-gray-200">
-                {theme === 'dark' ? 'Dark Mode' : 'Light Mode'}
-              </span>
-            </div>
-            <div className={`w-12 h-6 rounded-full transition-colors ${
-              theme === 'dark' ? 'bg-violet-600' : 'bg-gray-300'
-            }`}>
-              <div className={`w-5 h-5 bg-white rounded-full mt-0.5 transition-transform ${
-                theme === 'dark' ? 'ml-6' : 'ml-0.5'
-              }`} />
-            </div>
-          </button>
+          </CardContent>
         </Card>
+      )}
 
-        {/* Recording Settings */}
-        <Card className="p-4 md:p-6 dark:border-gray-800">
-          <h2 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-3 md:text-base">RECORDING</h2>
-          
-          <div className="mb-4 md:mb-6">
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-sm font-medium md:text-base dark:text-gray-200">Video Quality</span>
-              <Badge variant="secondary" className="capitalize">{videoQuality}</Badge>
+      {/* Appearance Settings */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Appearance</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <label className="text-sm font-medium mb-2 block">Theme</label>
+            <div className="flex gap-2">
+              <Button
+                variant={theme === 'light' ? 'default' : 'outline'}
+                onClick={() => setTheme('light')}
+                className="flex-1"
+              >
+                <Sun className="mr-2 h-4 w-4" />
+                Light
+              </Button>
+              <Button
+                variant={theme === 'dark' ? 'default' : 'outline'}
+                onClick={() => setTheme('dark')}
+                className="flex-1"
+              >
+                <Moon className="mr-2 h-4 w-4" />
+                Dark
+              </Button>
+              <Button
+                variant={theme === 'system' ? 'default' : 'outline'}
+                onClick={() => setTheme('system')}
+                className="flex-1"
+              >
+                System
+              </Button>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Recording Settings */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Recording</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Video Quality */}
+          <div>
+            <label className="text-sm font-medium mb-2 block">Video Quality</label>
             <div className="flex gap-2">
               {['low', 'medium', 'high'].map((quality) => (
                 <Button
                   key={quality}
                   variant={videoQuality === quality ? 'default' : 'outline'}
                   onClick={() => updateSetting('videoQuality', quality)}
-                  className="flex-1 capitalize text-xs md:text-sm"
-                  size="sm"
+                  className="flex-1 capitalize"
                 >
                   {quality}
                 </Button>
@@ -105,51 +118,36 @@ function Settings() {
             </div>
           </div>
 
-          <div className="mb-4 md:mb-6">
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-sm font-medium md:text-base dark:text-gray-200">Max Duration</span>
-              <Badge variant="secondary">{maxVideoDuration / 60} min</Badge>
-            </div>
+          {/* Max Duration */}
+          <div>
+            <label className="text-sm font-medium mb-2 block">Maximum Duration</label>
             <div className="flex gap-2">
-              {[180, 300, 600].map((seconds) => (
+              {[60, 180, 300, 600].map((seconds) => (
                 <Button
                   key={seconds}
                   variant={maxVideoDuration === seconds ? 'default' : 'outline'}
                   onClick={() => updateSetting('maxVideoDuration', seconds)}
-                  className="flex-1 text-xs md:text-sm"
-                  size="sm"
+                  className="flex-1"
                 >
-                  {seconds / 60}m
+                  {seconds / 60} min
                 </Button>
               ))}
             </div>
           </div>
 
-          <button
-            onClick={() => updateSetting('audioOnly', !audioOnly)}
-            className="w-full flex items-center justify-between py-3 border-t border-gray-200 dark:border-gray-700"
-          >
-            <span className="text-sm font-medium md:text-base dark:text-gray-200">Audio Only Mode</span>
-            <div className={`w-12 h-6 rounded-full transition-colors ${
-              audioOnly ? 'bg-violet-600' : 'bg-gray-300 '
-            }`}>
-              <div className={`w-5 h-5 bg-white rounded-full mt-0.5 transition-transform ${
-                audioOnly ? 'ml-6' : 'ml-0.5'
-              }`} />
-            </div>
-          </button>
-        </Card>
-
-        {/* About */}
-        <Card className="p-4 md:p-6 dark:border-gray-800">
-          <h2 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-3 md:text-base">ABOUT</h2>
-          <div className="space-y-2 text-sm">
-            <p className="text-gray-600 dark:text-gray-400">Version 1.0.0</p>
-            <p className="text-gray-600 dark:text-gray-400">Made with ❤️</p>
+          {/* Audio Only */}
+          <div>
+            <label className="text-sm font-medium mb-2 block">Recording Mode</label>
+            <Button
+              variant={audioOnly ? 'default' : 'outline'}
+              onClick={() => updateSetting('audioOnly', !audioOnly)}
+              className="w-full"
+            >
+              {audioOnly ? '🎤 Audio Only' : '📹 Video + Audio'}
+            </Button>
           </div>
-        </Card>
-
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
