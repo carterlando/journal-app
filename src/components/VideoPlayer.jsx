@@ -26,22 +26,30 @@ function VideoPlayer({ videoId, className = '' }) {
   useEffect(() => {
     loadVideo();
     
-    // Cleanup: Revoke blob URL when component unmounts
+    // Cleanup: Revoke blob URL when component unmounts (only if it's a blob URL)
     return () => {
-      if (videoUrl) {
+      if (videoUrl && videoUrl.startsWith('blob:')) {
         URL.revokeObjectURL(videoUrl);
       }
     };
   }, [videoId]);
 
   /**
-   * Load video blob from IndexedDB
+   * Load video - checks if it's a URL or IndexedDB ID
    */
   const loadVideo = async () => {
     try {
       setLoading(true);
       setError(null);
 
+      // Check if videoId is already a URL (R2)
+      if (videoId.startsWith('http://') || videoId.startsWith('https://')) {
+        setVideoUrl(videoId);
+        setLoading(false);
+        return;
+      }
+
+      // Otherwise, load from IndexedDB
       const { storage } = await import('../services/storage');
       const blob = await storage.getVideo(videoId);
       

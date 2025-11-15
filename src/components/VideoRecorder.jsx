@@ -1,55 +1,46 @@
 import { useState, useRef, useEffect } from 'react';
-import { platform } from '../adapters';
 import useEntriesStore from '../stores/entries';
 import useSettingsStore from '../stores/settings';
+import { uploadVideo, generateThumbnail } from '../services/r2';
+import useAuthStore from '../stores/auth';
 
 /**
  * VideoRecorder Component
  * 
- * Handles video/audio recording functionality.
- * Uses the platform adapter so it works on web and will work on mobile.
- * 
- * Features:
- * - Camera preview
- * - Start/stop recording
- * - Countdown timer
- * - Preview recorded video before saving
- * - Respects user settings (quality, duration, audio-only mode)
+ * Handles video/audio recording and upload to R2
+ * Saves entry metadata to Supabase database
  */
 function VideoRecorder({ onClose }) {
   // ==================== STATE ====================
   
-  const [stream, setStream] = useState(null); // Camera stream
-  const [recording, setRecording] = useState(false); // Currently recording?
-  const [recordedBlob, setRecordedBlob] = useState(null); // Recorded video data
-  const [recordedUrl, setRecordedUrl] = useState(null); // URL for playback
-  const [duration, setDuration] = useState(0); // Recording duration in seconds
-  const [error, setError] = useState(null); // Error message
-  const [previewing, setPreviewing] = useState(false); // Showing recorded video?
+  const [stream, setStream] = useState(null);
+  const [recording, setRecording] = useState(false);
+  const [recordedBlob, setRecordedBlob] = useState(null);
+  const [recordedUrl, setRecordedUrl] = useState(null);
+  const [duration, setDuration] = useState(0);
+  const [error, setError] = useState(null);
+  const [previewing, setPreviewing] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   // ==================== REFS ====================
-  // Why: Refs let us access DOM elements and values without causing re-renders
   
-  const videoRef = useRef(null); // Live camera preview element
-  const mediaRecorderRef = useRef(null); // MediaRecorder instance
-  const chunksRef = useRef([]); // Stores video data chunks during recording
-  const timerRef = useRef(null); // Interval for duration counter
+  const videoRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const chunksRef = useRef([]);
+  const timerRef = useRef(null);
 
   // ==================== STORE DATA ====================
   
   const { addEntry } = useEntriesStore();
   const { maxVideoDuration, audioOnly } = useSettingsStore();
+  const { user } = useAuthStore();
 
   // ==================== INITIALIZE CAMERA ====================
   
-  /**
-   * Request camera/microphone access when component mounts
-   * Why: Need permissions before we can record
-   */
   useEffect(() => {
     initializeCamera();
     
-    // Cleanup: Stop camera when component unmounts
     return () => {
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
@@ -57,30 +48,36 @@ function VideoRecorder({ onClose }) {
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
+      if (recordedUrl) {
+        URL.revokeObjectURL(recordedUrl);
+      }
     };
   }, []);
 
   /**
    * Initialize camera and microphone
-   * Requests user permission and starts preview
    */
   const initializeCamera = async () => {
     try {
-      // Request camera and microphone access from browser
-      // Why: Need explicit user permission to access camera/mic
       const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: !audioOnly ? { facingMode: 'user' } : false, // Front camera
-        audio: true, // Always capture audio
+        video: !audioOnly ? { 
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        } : false,
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+        }
       });
 
       setStream(mediaStream);
-      
-      // Show live preview in video element
+
+      // Show camera preview
       if (videoRef.current && !audioOnly) {
         videoRef.current.srcObject = mediaStream;
       }
     } catch (err) {
-      console.error('Camera access error:', err);
+      console.error('Camera initialization error:', err);
       setError('Could not access camera/microphone. Please check permissions.');
     }
   };
@@ -89,62 +86,57 @@ function VideoRecorder({ onClose }) {
 
   /**
    * Start recording
-   * Creates MediaRecorder and begins capturing video/audio
    */
   const startRecording = () => {
     if (!stream) {
-      setError('Camera not ready');
+      setError('No media stream available');
       return;
     }
 
     try {
-      // Clear any previous recording data
       chunksRef.current = [];
+
+      // Create MediaRecorder with appropriate codec
+      const mimeType = audioOnly 
+        ? 'audio/webm;codecs=opus'
+        : 'video/webm;codecs=vp8,opus';
       
-      // Create MediaRecorder to capture the stream
-      // Why: MediaRecorder API records video/audio from the camera stream
       const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'video/webm;codecs=vp8,opus', // WebM format (widely supported)
+        mimeType,
+        videoBitsPerSecond: 2500000, // 2.5 Mbps
       });
 
-      // Event: When data is available, store it
-      // Why: Recording happens in chunks for efficiency
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
           chunksRef.current.push(event.data);
         }
       };
 
-      // Event: When recording stops, create the final video file
-      mediaRecorder.onstop = () => {
-        // Combine all chunks into a single Blob (file)
-        const blob = new Blob(chunksRef.current, { type: 'video/webm' });
+      mediaRecorder.onstop = async () => {
+        const blob = new Blob(chunksRef.current, { 
+          type: audioOnly ? 'audio/webm' : 'video/webm' 
+        });
         setRecordedBlob(blob);
         
-        // Create URL for preview playback
         const url = URL.createObjectURL(blob);
         setRecordedUrl(url);
         
-        // Show preview screen
         setPreviewing(true);
       };
 
-      // Start recording
-      mediaRecorder.start();
+      mediaRecorder.start(100); // Collect data every 100ms
       mediaRecorderRef.current = mediaRecorder;
       setRecording(true);
-      setDuration(0);
-      setError(null);
 
       // Start duration counter
-      // Why: Show user how long they've been recording
       timerRef.current = setInterval(() => {
-        setDuration(prev => {
+        setDuration((prev) => {
           const newDuration = prev + 1;
           
           // Auto-stop at max duration
           if (newDuration >= maxVideoDuration) {
             stopRecording();
+            return maxVideoDuration;
           }
           
           return newDuration;
@@ -152,21 +144,19 @@ function VideoRecorder({ onClose }) {
       }, 1000);
 
     } catch (err) {
-      console.error('Recording error:', err);
-      setError('Could not start recording');
+      console.error('Recording start error:', err);
+      setError('Failed to start recording');
     }
   };
 
   /**
    * Stop recording
-   * Stops MediaRecorder and duration counter
    */
   const stopRecording = () => {
     if (mediaRecorderRef.current && recording) {
       mediaRecorderRef.current.stop();
       setRecording(false);
       
-      // Stop duration counter
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
@@ -174,50 +164,68 @@ function VideoRecorder({ onClose }) {
   };
 
   /**
-   * Save the recorded video as a journal entry
-   * Stores video blob in IndexedDB for persistence
+   * Save the recorded video
+   * Uploads to R2 and saves metadata to Supabase
    */
   const saveRecording = async () => {
-    if (!recordedBlob) return;
+    if (!recordedBlob || !user) return;
+
+    setUploading(true);
+    setUploadProgress(0);
 
     try {
-      // Create unique ID for this entry
-      const entryId = Date.now().toString();
+      // Generate unique entry ID
+      const entryId = crypto.randomUUID();
       
-      // Import storage service
-      const { storage } = await import('../services/storage');
+      setUploadProgress(10);
+
+      // Upload video to R2
+      console.log('Uploading video to R2...');
+      const videoUrl = await uploadVideo(recordedBlob, user.id, entryId);
       
-      // Initialize storage if not already done
-      if (!storage.db) {
-        await storage.init();
+      setUploadProgress(60);
+
+      // Generate thumbnail (optional, can be null for audio)
+      let thumbnailUrl = null;
+      if (!audioOnly) {
+        try {
+          console.log('Generating thumbnail...');
+          const thumbnailBlob = await generateThumbnail(recordedBlob);
+          thumbnailUrl = await uploadVideo(thumbnailBlob, user.id, `${entryId}_thumb`);
+        } catch (err) {
+          console.error('Thumbnail generation failed:', err);
+        }
       }
       
-      // Save video blob to IndexedDB
-      await storage.saveVideo(entryId, recordedBlob);
-      
-      console.log('Video saved to IndexedDB:', entryId);
+      setUploadProgress(80);
 
-      // Create journal entry object
+      // Create entry object
       const entry = {
         id: entryId,
-        createdAt: new Date().toISOString(),
-        recordedAt: new Date().toISOString(),
-        type: audioOnly ? 'audio' : 'video',
+        videoUrl: videoUrl,
+        thumbnailUrl: thumbnailUrl,
         duration: duration,
-        mediaUrl: entryId, // Store ID instead of blob URL
-        thumbnailUrl: null,
+        fileSize: recordedBlob.size,
         transcription: '',
         tags: [],
+        type: audioOnly ? 'audio' : 'video',
+        storageType: 'cloud',
+        recordedAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
       };
 
-      // Add to store (saves metadata to localStorage)
+      // Save to Supabase
+      console.log('Saving entry to database...');
       await addEntry(entry);
+
+      setUploadProgress(100);
 
       // Close recorder
       onClose();
     } catch (err) {
       console.error('Save error:', err);
-      setError('Could not save recording: ' + err.message);
+      setError(`Failed to save recording: ${err.message}`);
+      setUploading(false);
     }
   };
 
@@ -225,7 +233,6 @@ function VideoRecorder({ onClose }) {
    * Discard recording and start over
    */
   const discardRecording = () => {
-    // Clean up blob URL to prevent memory leak
     if (recordedUrl) {
       URL.revokeObjectURL(recordedUrl);
     }
@@ -234,18 +241,22 @@ function VideoRecorder({ onClose }) {
     setRecordedUrl(null);
     setPreviewing(false);
     setDuration(0);
+    setUploadProgress(0);
   };
 
   // ==================== FORMAT HELPERS ====================
 
-  /**
-   * Format seconds as MM:SS
-   * Why: Display human-readable time
-   */
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const formatFileSize = (bytes) => {
+    if (bytes < 1024 * 1024) {
+      return `${(bytes / 1024).toFixed(1)} KB`;
+    }
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
   // ==================== RENDER ====================
@@ -257,9 +268,9 @@ function VideoRecorder({ onClose }) {
         {/* Header */}
         <div style={styles.header}>
           <h2 style={styles.title}>
-            {previewing ? 'Preview Recording' : 'Record Journal Entry'}
+            {uploading ? 'Uploading...' : previewing ? 'Preview Recording' : 'Record Journal Entry'}
           </h2>
-          <button onClick={onClose} style={styles.closeButton}>✕</button>
+          <button onClick={onClose} style={styles.closeButton} disabled={uploading}>✕</button>
         </div>
 
         {/* Error Display */}
@@ -269,8 +280,20 @@ function VideoRecorder({ onClose }) {
           </div>
         )}
 
-        {/* Preview Mode: Show recorded video */}
-        {previewing ? (
+        {/* Uploading Progress */}
+        {uploading && (
+          <div style={styles.content}>
+            <div style={styles.progressContainer}>
+              <div style={styles.progressBar}>
+                <div style={{...styles.progressFill, width: `${uploadProgress}%`}}></div>
+              </div>
+              <p style={styles.progressText}>{uploadProgress}% - Uploading to cloud...</p>
+            </div>
+          </div>
+        )}
+
+        {/* Preview Mode */}
+        {!uploading && previewing && (
           <div style={styles.content}>
             <video
               src={recordedUrl}
@@ -281,6 +304,7 @@ function VideoRecorder({ onClose }) {
             
             <div style={styles.previewInfo}>
               <p>Duration: {formatTime(duration)}</p>
+              {recordedBlob && <p>Size: {formatFileSize(recordedBlob.size)}</p>}
             </div>
 
             <div style={styles.controls}>
@@ -288,12 +312,14 @@ function VideoRecorder({ onClose }) {
                 Discard & Re-record
               </button>
               <button onClick={saveRecording} style={styles.primaryButton}>
-                Save Entry
+                Save to Cloud
               </button>
             </div>
           </div>
-        ) : (
-          /* Recording Mode: Show live camera and controls */
+        )}
+
+        {/* Recording Mode */}
+        {!uploading && !previewing && (
           <div style={styles.content}>
             {!audioOnly && (
               <video
@@ -343,7 +369,6 @@ function VideoRecorder({ onClose }) {
 
 // ==================== STYLES ====================
 
-// Styles object
 const styles = {
   overlay: {
     position: 'fixed',
@@ -355,123 +380,163 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 9999,
+    zIndex: 1000,
   },
   container: {
-    backgroundColor: 'hsl(var(--card))',
+    backgroundColor: 'white',
     borderRadius: '12px',
     width: '90%',
     maxWidth: '600px',
     maxHeight: '90vh',
-    overflow: 'auto',
-    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+    overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column',
   },
   header: {
     padding: '20px',
-    borderBottom: '1px solid hsl(var(--border))',
+    borderBottom: '1px solid #e0e0e0',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: 'hsl(var(--card))',
   },
   title: {
     margin: 0,
     fontSize: '20px',
     fontWeight: '600',
-    color: 'hsl(var(--foreground))',
   },
   closeButton: {
     background: 'none',
     border: 'none',
     fontSize: '24px',
     cursor: 'pointer',
-    color: 'hsl(var(--muted-foreground))',
+    color: '#666',
     padding: '0',
-    width: '32px',
-    height: '32px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: '4px',
-  },
-  error: {
-    padding: '12px 20px',
-    backgroundColor: 'hsl(var(--destructive))',
-    color: 'hsl(var(--destructive-foreground))',
-    margin: '20px',
-    borderRadius: '8px',
+    width: '30px',
+    height: '30px',
   },
   content: {
     padding: '20px',
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
   },
   video: {
     width: '100%',
-    borderRadius: '8px',
+    maxHeight: '400px',
     backgroundColor: '#000',
+    borderRadius: '8px',
   },
   audioPlaceholder: {
     width: '100%',
-    aspectRatio: '16/9',
-    backgroundColor: 'hsl(var(--muted))',
+    height: '300px',
+    backgroundColor: '#f5f5f5',
     borderRadius: '8px',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    color: 'hsl(var(--muted-foreground))',
   },
   audioIcon: {
     fontSize: '64px',
-    marginBottom: '16px',
+    marginBottom: '10px',
   },
   durationDisplay: {
-    marginTop: '16px',
+    marginTop: '15px',
     fontSize: '18px',
-    fontWeight: '600',
-    textAlign: 'center',
-    color: 'hsl(var(--foreground))',
+    fontWeight: '500',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
   },
   recordingDot: {
-    display: 'inline-block',
-    width: '12px',
-    height: '12px',
-    backgroundColor: '#ef4444',
-    borderRadius: '50%',
-    marginRight: '8px',
-    animation: 'pulse 1.5s ease-in-out infinite',
-  },
-  controls: {
-    display: 'flex',
-    gap: '12px',
-    marginTop: '20px',
-    justifyContent: 'center',
-  },
-  primaryButton: {
-    padding: '12px 24px',
-    backgroundColor: 'hsl(var(--primary))',
-    color: 'hsl(var(--primary-foreground))',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '16px',
-    fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'opacity 0.2s',
-  },
-  secondaryButton: {
-    padding: '12px 24px',
-    backgroundColor: 'hsl(var(--secondary))',
-    color: 'hsl(var(--secondary-foreground))',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '16px',
-    fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'opacity 0.2s',
+    color: '#ff0000',
+    fontSize: '24px',
+    animation: 'blink 1s infinite',
   },
   previewInfo: {
-    marginTop: '16px',
+    marginTop: '15px',
+    fontSize: '16px',
     textAlign: 'center',
-    color: 'hsl(var(--muted-foreground))',
+  },
+  controls: {
+    marginTop: '20px',
+    display: 'flex',
+    gap: '10px',
+    width: '100%',
+  },
+  recordButton: {
+    flex: 1,
+    padding: '15px',
+    fontSize: '16px',
+    fontWeight: '600',
+    backgroundColor: '#ff0000',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+  },
+  stopButton: {
+    flex: 1,
+    padding: '15px',
+    fontSize: '16px',
+    fontWeight: '600',
+    backgroundColor: '#333',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+  },
+  primaryButton: {
+    flex: 1,
+    padding: '12px',
+    fontSize: '16px',
+    fontWeight: '600',
+    backgroundColor: '#4CAF50',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+  },
+  secondaryButton: {
+    flex: 1,
+    padding: '12px',
+    fontSize: '16px',
+    fontWeight: '600',
+    backgroundColor: '#f5f5f5',
+    color: '#333',
+    border: '1px solid #ddd',
+    borderRadius: '8px',
+    cursor: 'pointer',
+  },
+  error: {
+    padding: '15px',
+    margin: '20px',
+    backgroundColor: '#ffebee',
+    color: '#c62828',
+    borderRadius: '8px',
+    fontSize: '14px',
+  },
+  progressContainer: {
+    width: '100%',
+    textAlign: 'center',
+  },
+  progressBar: {
+    width: '100%',
+    height: '30px',
+    backgroundColor: '#f0f0f0',
+    borderRadius: '15px',
+    overflow: 'hidden',
+    marginBottom: '15px',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#4CAF50',
+    transition: 'width 0.3s ease',
+  },
+  progressText: {
+    fontSize: '16px',
+    color: '#666',
   },
 };
 

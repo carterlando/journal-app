@@ -48,7 +48,7 @@ export const uploadVideo = async (blob, userId, entryId) => {
     await r2Client.send(command);
 
     // Return the R2 URL (we'll use signed URLs for access)
-    const url = `${import.meta.env.VITE_R2_ENDPOINT}/${BUCKET_NAME}/${filename}`;
+    const url = import.meta.env.VITE_R2_PUBLIC_URL + filename;
     
     console.log('Video uploaded to R2:', url);
     return url;
