@@ -107,9 +107,6 @@ const useEntriesStore = create((set, get) => ({
       }));
 
       set({ entries, loading: false });
-      
-      // Save to local storage as backup
-      await get()._saveToLocal();
 
     } catch (error) {
       console.error('Failed to load entries from Supabase:', error);
