@@ -4,6 +4,21 @@ import useSettingsStore from '../stores/settings';
 import { uploadVideo, generateThumbnail } from '../services/r2';
 import useAuthStore from '../stores/auth';
 
+// Add keyframes for spinner animation
+const styleSheet = document.styleSheets[0];
+if (styleSheet) {
+  try {
+    styleSheet.insertRule(`
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    `, styleSheet.cssRules.length);
+  } catch (e) {
+    // Animation might already exist
+  }
+}
+
 /**
  * VideoRecorder Component
  * 
@@ -14,6 +29,7 @@ function VideoRecorder({ onClose }) {
   // ==================== STATE ====================
   
   const [stream, setStream] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [recording, setRecording] = useState(false);
   const [recordedBlob, setRecordedBlob] = useState(null);
   const [recordedUrl, setRecordedUrl] = useState(null);
@@ -54,11 +70,19 @@ function VideoRecorder({ onClose }) {
     };
   }, []);
 
+  // Set video stream when it's ready
+  useEffect(() => {
+    if (stream && videoRef.current && !audioOnly && !recording && !previewing) {
+      videoRef.current.srcObject = stream;
+    }
+  }, [stream, audioOnly, recording, previewing]);
+
   /**
    * Initialize camera and microphone
    */
   const initializeCamera = async () => {
     try {
+      setLoading(true);
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: !audioOnly ? { 
           width: { ideal: 1920 },
@@ -71,14 +95,11 @@ function VideoRecorder({ onClose }) {
       });
 
       setStream(mediaStream);
-
-      // Show camera preview
-      if (videoRef.current && !audioOnly) {
-        videoRef.current.srcObject = mediaStream;
-      }
+      setLoading(false);
     } catch (err) {
       console.error('Camera initialization error:', err);
       setError('Could not access camera/microphone. Please check permissions.');
+      setLoading(false);
     }
   };
 
@@ -203,6 +224,7 @@ function VideoRecorder({ onClose }) {
       const entry = {
         id: entryId,
         videoUrl: videoUrl,
+        mediaUrl: videoUrl,
         thumbnailUrl: thumbnailUrl,
         duration: duration,
         fileSize: recordedBlob.size,
@@ -252,13 +274,6 @@ function VideoRecorder({ onClose }) {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const formatFileSize = (bytes) => {
-    if (bytes < 1024 * 1024) {
-      return `${(bytes / 1024).toFixed(1)} KB`;
-    }
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  };
-
   // ==================== RENDER ====================
 
   return (
@@ -280,6 +295,16 @@ function VideoRecorder({ onClose }) {
           </div>
         )}
 
+        {/* Loading Display */}
+        {loading && !error && (
+          <div style={styles.content}>
+            <div style={styles.loadingContainer}>
+              <div style={styles.spinner}></div>
+              <p style={styles.loadingText}>Initializing camera...</p>
+            </div>
+          </div>
+        )}
+
         {/* Uploading Progress */}
         {uploading && (
           <div style={styles.content}>
@@ -293,7 +318,7 @@ function VideoRecorder({ onClose }) {
         )}
 
         {/* Preview Mode */}
-        {!uploading && previewing && (
+        {!uploading && !loading && previewing && (
           <div style={styles.content}>
             <video
               src={recordedUrl}
@@ -304,7 +329,6 @@ function VideoRecorder({ onClose }) {
             
             <div style={styles.previewInfo}>
               <p>Duration: {formatTime(duration)}</p>
-              {recordedBlob && <p>Size: {formatFileSize(recordedBlob.size)}</p>}
             </div>
 
             <div style={styles.controls}>
@@ -319,7 +343,7 @@ function VideoRecorder({ onClose }) {
         )}
 
         {/* Recording Mode */}
-        {!uploading && !previewing && (
+        {!uploading && !loading && !previewing && (
           <div style={styles.content}>
             {!audioOnly && (
               <video
@@ -383,7 +407,8 @@ const styles = {
     zIndex: 1000,
   },
   container: {
-    backgroundColor: 'white',
+    backgroundColor: 'hsl(var(--background))',
+    color: 'hsl(var(--foreground))',
     borderRadius: '12px',
     width: '90%',
     maxWidth: '600px',
@@ -394,7 +419,7 @@ const styles = {
   },
   header: {
     padding: '20px',
-    borderBottom: '1px solid #e0e0e0',
+    borderBottom: '1px solid hsl(var(--border))',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -403,13 +428,14 @@ const styles = {
     margin: 0,
     fontSize: '20px',
     fontWeight: '600',
+    color: 'hsl(var(--foreground))',
   },
   closeButton: {
     background: 'none',
     border: 'none',
     fontSize: '24px',
     cursor: 'pointer',
-    color: '#666',
+    color: 'hsl(var(--muted-foreground))',
     padding: '0',
     width: '30px',
     height: '30px',
@@ -430,7 +456,7 @@ const styles = {
   audioPlaceholder: {
     width: '100%',
     height: '300px',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: 'hsl(var(--muted))',
     borderRadius: '8px',
     display: 'flex',
     flexDirection: 'column',
@@ -448,6 +474,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
+    color: 'hsl(var(--foreground))',
   },
   recordingDot: {
     color: '#ff0000',
@@ -458,6 +485,7 @@ const styles = {
     marginTop: '15px',
     fontSize: '16px',
     textAlign: 'center',
+    color: 'hsl(var(--foreground))',
   },
   controls: {
     marginTop: '20px',
@@ -481,8 +509,8 @@ const styles = {
     padding: '15px',
     fontSize: '16px',
     fontWeight: '600',
-    backgroundColor: '#333',
-    color: 'white',
+    backgroundColor: 'hsl(var(--foreground))',
+    color: 'hsl(var(--background))',
     border: 'none',
     borderRadius: '8px',
     cursor: 'pointer',
@@ -492,8 +520,8 @@ const styles = {
     padding: '12px',
     fontSize: '16px',
     fontWeight: '600',
-    backgroundColor: '#4CAF50',
-    color: 'white',
+    backgroundColor: 'hsl(var(--primary))',
+    color: 'hsl(var(--primary-foreground))',
     border: 'none',
     borderRadius: '8px',
     cursor: 'pointer',
@@ -503,19 +531,38 @@ const styles = {
     padding: '12px',
     fontSize: '16px',
     fontWeight: '600',
-    backgroundColor: '#f5f5f5',
-    color: '#333',
-    border: '1px solid #ddd',
+    backgroundColor: 'hsl(var(--secondary))',
+    color: 'hsl(var(--secondary-foreground))',
+    border: '1px solid hsl(var(--border))',
     borderRadius: '8px',
     cursor: 'pointer',
   },
   error: {
     padding: '15px',
     margin: '20px',
-    backgroundColor: '#ffebee',
-    color: '#c62828',
+    backgroundColor: 'hsl(var(--destructive) / 0.1)',
+    color: 'hsl(var(--destructive))',
     borderRadius: '8px',
     fontSize: '14px',
+  },
+  loadingContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '20px',
+    padding: '40px',
+  },
+  spinner: {
+    width: '48px',
+    height: '48px',
+    border: '4px solid hsl(var(--muted))',
+    borderTop: '4px solid hsl(var(--primary))',
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite',
+  },
+  loadingText: {
+    fontSize: '16px',
+    color: 'hsl(var(--muted-foreground))',
   },
   progressContainer: {
     width: '100%',
@@ -524,19 +571,19 @@ const styles = {
   progressBar: {
     width: '100%',
     height: '30px',
-    backgroundColor: '#f0f0f0',
+    backgroundColor: 'hsl(var(--muted))',
     borderRadius: '15px',
     overflow: 'hidden',
     marginBottom: '15px',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#4CAF50',
+    backgroundColor: 'hsl(var(--primary))',
     transition: 'width 0.3s ease',
   },
   progressText: {
     fontSize: '16px',
-    color: '#666',
+    color: 'hsl(var(--muted-foreground))',
   },
 };
 
