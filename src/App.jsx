@@ -1,14 +1,30 @@
-import { useEffect } from 'react';
+import { useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import useEntriesStore from './stores/entries';
 import useAuthStore from './stores/auth';
 import useSettingsStore from './stores/settings';
 import Navigation from './components/Navigation';
 import ProtectedRoute from './components/ProtectedRoute';
-import Home from './pages/Home';
-import Entries from './pages/Entries';
-import Settings from './pages/Settings';
 import { ThemeProvider } from './components/ThemeProvider';
+
+// Lazy load pages for code splitting
+// Why: Reduces initial bundle size by loading pages only when needed
+const Home = lazy(() => import('./pages/Home'));
+const Entries = lazy(() => import('./pages/Entries'));
+const Settings = lazy(() => import('./pages/Settings'));
+
+/**
+ * Loading fallback component
+ * Shown while lazy-loaded pages are being fetched
+ */
+const LoadingFallback = () => (
+  <div className="flex items-center justify-center min-h-screen">
+    <div className="text-center">
+      <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+      <p className="text-muted-foreground">Loading...</p>
+    </div>
+  </div>
+);
 
 /**
  * Main App Component
@@ -53,25 +69,28 @@ function App() {
           {/* Only add padding when authenticated (nav is visible) */}
           <div className={isAuthenticated ? "md:pl-64 lg:pl-72" : ""}>
             <div className={`container mx-auto px-4 md:px-6 py-4 md:py-6 ${isAuthenticated ? 'pb-20 md:pb-6' : ''} max-w-7xl`}>
-              <Routes>
-                <Route path="/" element={<Home />} />
-                <Route 
-                  path="/entries" 
-                  element={
-                    <ProtectedRoute>
-                      <Entries />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/settings" 
-                  element={
-                    <ProtectedRoute>
-                      <Settings />
-                    </ProtectedRoute>
-                  } 
-                />
-              </Routes>
+              {/* Suspense wrapper for lazy-loaded routes */}
+              <Suspense fallback={<LoadingFallback />}>
+                <Routes>
+                  <Route path="/" element={<Home />} />
+                  <Route 
+                    path="/entries" 
+                    element={
+                      <ProtectedRoute>
+                        <Entries />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  <Route 
+                    path="/settings" 
+                    element={
+                      <ProtectedRoute>
+                        <Settings />
+                      </ProtectedRoute>
+                    } 
+                  />
+                </Routes>
+              </Suspense>
             </div>
           </div>
         </div>
