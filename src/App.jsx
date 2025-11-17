@@ -10,7 +10,7 @@ import { ThemeProvider } from './components/ThemeProvider';
 // Lazy load pages for code splitting
 // Why: Reduces initial bundle size by loading pages only when needed
 const Home = lazy(() => import('./pages/Home'));
-const Entries = lazy(() => import('./pages/Entries'));
+const Calendar = lazy(() => import('./pages/Calendar'));
 const Settings = lazy(() => import('./pages/Settings'));
 
 /**
@@ -74,10 +74,10 @@ function App() {
                 <Routes>
                   <Route path="/" element={<Home />} />
                   <Route 
-                    path="/entries" 
+                    path="/calendar" 
                     element={
                       <ProtectedRoute>
-                        <Entries />
+                        <Calendar />
                       </ProtectedRoute>
                     } 
                   />

@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Grid, Settings, LogIn, LogOut, User } from 'lucide-react';
+import { Home, Calendar, Settings, LogOut, User } from 'lucide-react';
 import { useState } from 'react';
 import useAuthStore from '../stores/auth';
 import AuthModal from './AuthModal';
@@ -8,6 +8,7 @@ import AuthModal from './AuthModal';
  * Navigation Component
  * 
  * Only visible when user is authenticated
+ * Now only shows: Home, Calendar, Settings
  */
 function Navigation() {
   const location = useLocation();
@@ -57,9 +58,9 @@ function Navigation() {
               <Home className="w-6 h-6" />
               <span className="text-base">Home</span>
             </Link>
-            <Link to="/entries" className={sidebarNavClass('/entries')}>
-              <Grid className="w-6 h-6" />
-              <span className="text-base">All Entries</span>
+            <Link to="/calendar" className={sidebarNavClass('/calendar')}>
+              <Calendar className="w-6 h-6" />
+              <span className="text-base">Calendar</span>
             </Link>
             <Link to="/settings" className={sidebarNavClass('/settings')}>
               <Settings className="w-6 h-6" />
@@ -96,9 +97,9 @@ function Navigation() {
             <Home className="w-6 h-6" />
             <span className="text-xs mt-1">Home</span>
           </Link>
-          <Link to="/entries" className={mobileNavClass('/entries')}>
-            <Grid className="w-6 h-6" />
-            <span className="text-xs mt-1">Entries</span>
+          <Link to="/calendar" className={mobileNavClass('/calendar')}>
+            <Calendar className="w-6 h-6" />
+            <span className="text-xs mt-1">Calendar</span>
           </Link>
           <Link to="/settings" className={mobileNavClass('/settings')}>
             <Settings className="w-6 h-6" />
