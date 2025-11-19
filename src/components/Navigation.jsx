@@ -6,9 +6,8 @@ import AuthModal from './AuthModal';
 
 /**
  * Navigation Component
- * 
- * Only visible when user is authenticated
- * Now only shows: Home, Calendar, Settings
+ * Hidden on home page (camera view)
+ * Shows only on Calendar and Settings pages
  */
 function Navigation() {
   const location = useLocation();
@@ -16,39 +15,41 @@ function Navigation() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   
   const isActive = (path) => location.pathname === path;
+  const isHomePage = location.pathname === '/';
 
-  // Mobile bottom nav styling
+  // Mobile nav styling
   const mobileNavClass = (path) => `
-    flex flex-col items-center justify-center flex-1 py-2 transition-colors
-    ${isActive(path)
-      ? 'text-primary'
-      : 'text-muted-foreground'
-    }
+    flex flex-col items-center justify-center flex-1 py-3 transition-colors
+    ${isActive(path) ? 'text-violet-400' : 'text-zinc-400 hover:text-zinc-200'}
   `;
 
   // Desktop sidebar nav styling
   const sidebarNavClass = (path) => `
-    flex items-center gap-4 px-4 py-3 rounded-lg transition-all
+    group flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all relative overflow-hidden
     ${isActive(path)
-      ? 'bg-primary/10 text-primary font-semibold'
-      : 'text-foreground hover:bg-accent'
+      ? 'bg-violet-600/20 text-violet-400'
+      : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/5'
     }
   `;
 
-  // Don't show navigation if not authenticated
   if (!isAuthenticated) {
+    return null;
+  }
+
+  // Hide navigation on home page (camera view)
+  if (isHomePage) {
     return null;
   }
 
   return (
     <>
-      {/* Desktop/Tablet Sidebar - Left */}
+      {/* Desktop/Tablet Sidebar */}
       <aside className="hidden md:flex md:flex-col md:fixed md:left-0 md:top-0 md:h-screen md:w-64 lg:w-72 md:border-r md:border-border md:bg-card md:z-40">
         <div className="flex flex-col h-full p-6">
           {/* Logo */}
-          <Link to="/" className="mb-8">
+          <Link to="/" className="mb-10">
             <h1 className="text-2xl font-bold text-violet-600 dark:text-violet-400">
-              Video Journal
+              Story Time
             </h1>
           </Link>
 
@@ -56,36 +57,36 @@ function Navigation() {
           <nav className="flex-1 space-y-2">
             <Link to="/" className={sidebarNavClass('/')}>
               <Home className="w-6 h-6" />
-              <span className="text-base">Home</span>
+              <span className="text-base font-medium">Home</span>
             </Link>
+            
             <Link to="/calendar" className={sidebarNavClass('/calendar')}>
               <Calendar className="w-6 h-6" />
-              <span className="text-base">Calendar</span>
+              <span className="text-base font-medium">Calendar</span>
             </Link>
+            
             <Link to="/settings" className={sidebarNavClass('/settings')}>
               <Settings className="w-6 h-6" />
-              <span className="text-base">Settings</span>
+              <span className="text-base font-medium">Settings</span>
             </Link>
           </nav>
 
-          {/* Footer with Auth */}
+          {/* Footer with User Info */}
           <div className="mt-auto pt-6 border-t border-border space-y-3">
-            <div className="flex items-center gap-2 px-3 py-2 bg-primary/5 rounded-lg">
+            <div className="flex items-center gap-3 px-4 py-3 bg-primary/5 rounded-lg">
               <User className="w-4 h-4 text-primary" />
               <p className="text-xs text-foreground truncate flex-1">
                 {user?.email}
               </p>
             </div>
+            
             <button
               onClick={logout}
-              className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg w-full transition-colors"
+              className="flex items-center gap-3 px-4 py-3 text-sm text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg w-full transition-colors"
             >
               <LogOut className="w-4 h-4" />
               Sign Out
             </button>
-            <p className="text-xs text-muted-foreground text-center">
-              © 2025 Video Journal
-            </p>
           </div>
         </div>
       </aside>
@@ -97,10 +98,12 @@ function Navigation() {
             <Home className="w-6 h-6" />
             <span className="text-xs mt-1">Home</span>
           </Link>
+          
           <Link to="/calendar" className={mobileNavClass('/calendar')}>
             <Calendar className="w-6 h-6" />
             <span className="text-xs mt-1">Calendar</span>
           </Link>
+          
           <Link to="/settings" className={mobileNavClass('/settings')}>
             <Settings className="w-6 h-6" />
             <span className="text-xs mt-1">Settings</span>
@@ -108,7 +111,6 @@ function Navigation() {
         </div>
       </div>
 
-      {/* Auth Modal */}
       {showAuthModal && (
         <AuthModal
           onClose={() => setShowAuthModal(false)}
