@@ -9,6 +9,19 @@ import { uploadVideo, generateThumbnail } from '../services/r2';
 
 /**
  * Home Page Component - Instagram Stories Style
+ * 
+ * CHANGES:
+ * - Record button border is WHITE in both light and dark themes
+ * - Recording timer moved to top left (was top right)
+ * - Recording timer shows current/max time (e.g., 1:05/5:00)
+ * - Record button border fills RED as progress bar during recording (fills inside the border)
+ * - Memory video moved to top right (was top left)
+ * - Memory date moved to bottom of frame (was top)
+ * - Bottom navigation icons are horizontally centered
+ * - Max recording duration: 5 minutes (300 seconds)
+ * - Smooth single transition: white circle → red square (both size AND shape change simultaneously)
+ * - Async save to prevent frame drops
+ * - Auto-stop and save at max duration
  */
 function Home() {
   const { isAuthenticated, user } = useAuthStore();
@@ -29,6 +42,9 @@ function Home() {
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
   const timerRef = useRef(null);
+  
+  // Maximum recording duration in seconds (5 minutes)
+  const MAX_DURATION = 300;
 
   // Initialize camera preview
   useEffect(() => {
@@ -70,7 +86,7 @@ function Home() {
     }
   }, [stream]);
 
-  // Loop memory video every 3 seconds - FIXED
+  // Loop memory video every 3 seconds
   useEffect(() => {
     if (memoryVideoRef.current && memoryEntry?.mediaUrl) {
       const video = memoryVideoRef.current;
@@ -81,14 +97,12 @@ function Home() {
       };
       
       const handleTimeUpdate = () => {
-        // Loop back to start after 3 seconds
         if (video.currentTime >= 3) {
           video.currentTime = 0;
         }
       };
       
       const handleEnded = () => {
-        // Ensure it loops if video ends before 3 seconds
         video.currentTime = 0;
         video.play().catch(err => console.error('Video play error:', err));
       };
@@ -97,7 +111,6 @@ function Home() {
       video.addEventListener('timeupdate', handleTimeUpdate);
       video.addEventListener('ended', handleEnded);
       
-      // Initial play
       if (video.readyState >= 2) {
         video.currentTime = 0;
         video.play().catch(err => console.error('Video play error:', err));
@@ -111,7 +124,7 @@ function Home() {
     }
   }, [memoryEntry]);
 
-  // Find memory entry
+  // Find memory entry using cascading search
   useEffect(() => {
     if (!isAuthenticated || loading || entries.length === 0 || memoryCalculated) {
       return;
@@ -123,6 +136,14 @@ function Home() {
     setMemoryCalculated(true);
   }, [isAuthenticated, entries, loading, memoryCalculated]);
 
+  /**
+   * Cascading search algorithm:
+   * 1. Exact day match (same day/month, earlier year)
+   * 2. ±7 days match (same week range, earlier year)
+   * 3. Same month match (earlier year)
+   * 4. Same year match (earlier year)
+   * 5. Random past entry
+   */
   const findMemoryEntry = (entries, referenceDate) => {
     if (entries.length === 0) return null;
 
@@ -229,7 +250,9 @@ function Home() {
     }
   };
 
-  // Start recording
+  /**
+   * Start recording video
+   */
   const startRecording = () => {
     if (!stream || recording) return;
 
@@ -249,7 +272,8 @@ function Home() {
 
       mediaRecorder.onstop = async () => {
         const blob = new Blob(chunksRef.current, { type: 'video/webm' });
-        await saveRecording(blob);
+        // Save asynchronously to prevent UI blocking
+        saveRecording(blob);
       };
 
       mediaRecorder.start(100);
@@ -257,9 +281,22 @@ function Home() {
       setRecording(true);
       setRecordingTime(0);
 
-      // Start timer
+      // Start timer and auto-stop at MAX_DURATION
       timerRef.current = setInterval(() => {
-        setRecordingTime((prev) => prev + 1);
+        setRecordingTime((prev) => {
+          const newTime = prev + 1;
+          // Auto-stop at max duration
+          if (newTime >= MAX_DURATION) {
+            // Stop recording immediately, save will happen in onstop
+            if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+              mediaRecorderRef.current.stop();
+              setRecording(false);
+              clearInterval(timerRef.current);
+            }
+            return MAX_DURATION;
+          }
+          return newTime;
+        });
       }, 1000);
 
     } catch (err) {
@@ -268,19 +305,27 @@ function Home() {
     }
   };
 
-  // Stop recording
+  /**
+   * Stop recording video
+   * UI updates immediately, save happens asynchronously
+   */
   const stopRecording = () => {
     if (mediaRecorderRef.current && recording) {
+      // Stop recording and update UI immediately
       mediaRecorderRef.current.stop();
       setRecording(false);
       
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
+      // Save will happen in mediaRecorder.onstop
     }
   };
 
-  // Save recording
+  /**
+   * Save recording to Cloudflare R2 and Supabase
+   * Runs asynchronously to prevent blocking UI
+   */
   const saveRecording = async (blob) => {
     if (!user) return;
 
@@ -341,10 +386,20 @@ function Home() {
     }
   };
 
+  /**
+   * Format time as MM:SS
+   */
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  /**
+   * Calculate recording progress percentage (0-100)
+   */
+  const getRecordingProgress = () => {
+    return (recordingTime / MAX_DURATION) * 100;
   };
 
   if (!isAuthenticated) {
@@ -389,7 +444,7 @@ function Home() {
               left: 0, 
               width: '100%', 
               height: '100%',
-              transform: 'scaleX(-1)' // Mirror the preview
+              transform: 'scaleX(-1)'
             }}
           />
         ) : (
@@ -401,11 +456,11 @@ function Home() {
           </div>
         )}
 
-        {/* Remember this day - Video Loop (Top Left) */}
+        {/* Remember this day - Video Loop (TOP RIGHT) */}
         {memoryEntry && !recording && (
           <div
             onClick={handleMemoryClick}
-            className="absolute top-4 left-4 w-24 cursor-pointer group"
+            className="absolute top-4 right-4 w-24 cursor-pointer group"
             style={{ zIndex: 30 }}
           >
             <div className="relative">
@@ -432,8 +487,8 @@ function Home() {
                   </div>
                 )}
                 
-                {/* Date Label - Smaller, less rounded, less padding */}
-                <div className="absolute top-1.5 left-1.5 right-1.5">
+                {/* Date Label - MOVED TO BOTTOM */}
+                <div className="absolute bottom-1.5 left-1.5 right-1.5">
                   <p className="text-[11px] text-white font-semibold drop-shadow-lg text-center px-1.5 py-0.5">
                     {new Date(memoryEntry.recordedAt).toLocaleDateString('en-US', {
                       month: 'short',
@@ -447,13 +502,13 @@ function Home() {
           </div>
         )}
 
-        {/* Recording Timer - Top Right, Smaller */}
+        {/* Recording Timer - TOP LEFT with MAX DURATION (5 minutes) */}
         {recording && (
-          <div className="absolute top-4 right-4" style={{ zIndex: 30 }}>
+          <div className="absolute top-4 left-4" style={{ zIndex: 30 }}>
             <div className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 rounded-full">
               <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
               <span className="text-white font-mono font-semibold text-sm">
-                {formatTime(recordingTime)}
+                {formatTime(recordingTime)}/{formatTime(MAX_DURATION)}
               </span>
             </div>
           </div>
@@ -479,38 +534,77 @@ function Home() {
           </div>
         )}
 
-        {/* Bottom Navigation */}
+        {/* Bottom Navigation - CENTERED HORIZONTALLY */}
         <div className="absolute bottom-0 left-0 right-0 pb-8" style={{ zIndex: 20 }}>
-          <div className="flex items-end justify-between px-6">
+          <div className="flex items-center justify-center gap-16 px-6">
             {/* Calendar Icon - Bottom Left */}
             <Link
               to="/calendar"
-              className="w-12 h-12 flex items-center justify-center hover:bg-black/20 rounded-full transition-colors mb-1"
+              className="w-12 h-12 flex items-center justify-center hover:bg-black/20 rounded-full transition-colors"
             >
               <Calendar className="w-7 h-7 text-white drop-shadow-lg" />
             </Link>
 
-            {/* Record Button - Center */}
+            {/* Record Button - Center with RED PROGRESS BAR filling the WHITE BORDER */}
             <button
               onClick={handleRecordClick}
               className="relative"
               disabled={!stream || saving}
             >
-              <div className={`w-20 h-20 rounded-full border-4 flex items-center justify-center transition-colors ${
-                recording ? 'border-red-600' : 'border-white'
-              }`}>
-                <div className={`transition-all ${
-                  recording 
-                    ? 'w-8 h-8 bg-red-600 rounded-sm' 
-                    : 'w-16 h-16 bg-white rounded-full'
-                }`} />
+              {/* Progress ring that fills the border (RED) */}
+              <svg
+                className="absolute top-0 left-0 w-20 h-20 -rotate-90"
+                style={{ zIndex: 1 }}
+              >
+                {/* Background white border circle */}
+                <circle
+                  cx="40"
+                  cy="40"
+                  r="36"
+                  stroke="white"
+                  strokeWidth="4"
+                  fill="none"
+                  opacity={recording ? "0.3" : "1"}
+                  className="transition-opacity duration-500 ease-in-out"
+                />
+                {/* Red progress circle (only visible when recording) */}
+                {recording && (
+                  <circle
+                    cx="40"
+                    cy="40"
+                    r="36"
+                    stroke="#dc2626"
+                    strokeWidth="4"
+                    fill="none"
+                    strokeDasharray={`${2 * Math.PI * 36}`}
+                    strokeDashoffset={`${2 * Math.PI * 36 * (1 - getRecordingProgress() / 100)}`}
+                    className="transition-all duration-200 ease-linear"
+                    strokeLinecap="round"
+                  />
+                )}
+              </svg>
+              
+              {/* Button inner shape - SINGLE SMOOTH TRANSITION: white circle → red square */}
+              <div 
+                className="w-20 h-20 rounded-full flex items-center justify-center"
+                style={{ position: 'relative', zIndex: 2 }}
+              >
+                <div 
+                  style={{
+                    width: recording ? '2rem' : '4rem',
+                    height: recording ? '2rem' : '4rem',
+                    borderRadius: recording ? '0.375rem' : '50%',
+                    backgroundColor: recording ? '#dc2626' : 'white',
+                    transition: 'all 0.3s ease-in-out',
+                  }}
+                />
               </div>
             </button>
 
             {/* Settings Icon - Bottom Right */}
             <Link
               to="/settings"
-              className="w-12 h-12 flex items-center justify-center hover:bg-black/20 rounded-full transition-colors mb-1"
+              className="w-12 h-12 flex items-center justify-center hover:bg-black/20 rounded-full transition-colors"
             >
               <Settings className="w-7 h-7 text-white drop-shadow-lg" />
             </Link>
