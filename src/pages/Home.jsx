@@ -6,20 +6,20 @@ import useAuthStore from '../stores/auth';
 import AuthModal from '../components/AuthModal';
 import ReelViewer from '../components/ReelViewer';
 import { uploadVideo, generateThumbnail } from '../services/r2';
+import { findMemoryEntry } from '../utils/memorySearch';
+import { useVideoLoop } from '../hooks/useVideoLoop';
+import { formatTime } from '../utils/dateHelpers';
 
 /**
  * Home Page Component - Instagram Stories Style
  * 
- * CHANGES:
- * - Record button border is WHITE in both light and dark themes
- * - Recording timer moved to top left (was top right)
- * - Recording timer shows current/max time (e.g., 1:05/5:00)
- * - Record button border fills RED as progress bar during recording (fills inside the border)
- * - Memory video moved to top right (was top left)
- * - Memory date moved to bottom of frame (was top)
- * - Bottom navigation icons are horizontally centered
+ * Full-screen camera interface with:
+ * - Live camera preview (mirrored)
+ * - "Remember this day" memory video (top right)
+ * - Recording timer with progress (top left)
+ * - Record button with circular progress bar (center bottom)
+ * - Navigation icons (calendar left, settings right)
  * - Max recording duration: 5 minutes (300 seconds)
- * - Smooth single transition: white circle → red square (both size AND shape change simultaneously)
  * - Async save to prevent frame drops
  * - Auto-stop and save at max duration
  */
@@ -86,43 +86,8 @@ function Home() {
     }
   }, [stream]);
 
-  // Loop memory video every 3 seconds
-  useEffect(() => {
-    if (memoryVideoRef.current && memoryEntry?.mediaUrl) {
-      const video = memoryVideoRef.current;
-      
-      const handleLoadedMetadata = () => {
-        video.currentTime = 0;
-        video.play().catch(err => console.error('Video play error:', err));
-      };
-      
-      const handleTimeUpdate = () => {
-        if (video.currentTime >= 3) {
-          video.currentTime = 0;
-        }
-      };
-      
-      const handleEnded = () => {
-        video.currentTime = 0;
-        video.play().catch(err => console.error('Video play error:', err));
-      };
-      
-      video.addEventListener('loadedmetadata', handleLoadedMetadata);
-      video.addEventListener('timeupdate', handleTimeUpdate);
-      video.addEventListener('ended', handleEnded);
-      
-      if (video.readyState >= 2) {
-        video.currentTime = 0;
-        video.play().catch(err => console.error('Video play error:', err));
-      }
-      
-      return () => {
-        video.removeEventListener('loadedmetadata', handleLoadedMetadata);
-        video.removeEventListener('timeupdate', handleTimeUpdate);
-        video.removeEventListener('ended', handleEnded);
-      };
-    }
-  }, [memoryEntry]);
+  // Use custom hook for memory video loop (3 seconds)
+  useVideoLoop(memoryVideoRef, memoryEntry?.mediaUrl, 3);
 
   // Find memory entry using cascading search
   useEffect(() => {
@@ -135,114 +100,6 @@ function Home() {
     setMemoryEntry(foundEntry);
     setMemoryCalculated(true);
   }, [isAuthenticated, entries, loading, memoryCalculated]);
-
-  /**
-   * Cascading search algorithm:
-   * 1. Exact day match (same day/month, earlier year)
-   * 2. ±7 days match (same week range, earlier year)
-   * 3. Same month match (earlier year)
-   * 4. Same year match (earlier year)
-   * 5. Random past entry
-   */
-  const findMemoryEntry = (entries, referenceDate) => {
-    if (entries.length === 0) return null;
-
-    const todayMidnight = new Date(referenceDate);
-    todayMidnight.setHours(0, 0, 0, 0);
-
-    const pastEntries = entries.filter(entry => {
-      const entryDate = new Date(entry.recordedAt);
-      entryDate.setHours(0, 0, 0, 0);
-      return entryDate < todayMidnight;
-    });
-
-    if (pastEntries.length === 0) return null;
-
-    for (let monthsBack = 0; monthsBack < 120; monthsBack++) {
-      const targetDate = new Date(referenceDate);
-      targetDate.setMonth(targetDate.getMonth() - monthsBack);
-
-      const targetYear = targetDate.getFullYear();
-      const targetMonth = targetDate.getMonth() + 1;
-      const targetDay = targetDate.getDate();
-
-      const exactDayMatches = pastEntries.filter(entry => {
-        const entryDate = new Date(entry.recordedAt);
-        const entryYear = entryDate.getFullYear();
-        const entryMonth = entryDate.getMonth() + 1;
-        const entryDay = entryDate.getDate();
-
-        return entryYear < targetYear &&
-               entryMonth === targetMonth &&
-               entryDay === targetDay;
-      });
-
-      if (exactDayMatches.length > 0) {
-        return getRandomEntry(exactDayMatches);
-      }
-
-      const weekRangeMatches = pastEntries.filter(entry => {
-        const entryDate = new Date(entry.recordedAt);
-        const entryYear = entryDate.getFullYear();
-        
-        if (entryYear >= targetYear) return false;
-
-        const targetDateInEntryYear = new Date(entryYear, targetMonth - 1, targetDay);
-        const dayDiff = Math.abs(
-          Math.floor((entryDate.getTime() - targetDateInEntryYear.getTime()) / (1000 * 60 * 60 * 24))
-        );
-
-        return dayDiff <= 7;
-      });
-
-      if (weekRangeMatches.length > 0) {
-        return getClosestEntry(weekRangeMatches, new Date(targetYear - 1, targetMonth - 1, targetDay));
-      }
-
-      const sameMonthMatches = pastEntries.filter(entry => {
-        const entryDate = new Date(entry.recordedAt);
-        const entryYear = entryDate.getFullYear();
-        const entryMonth = entryDate.getMonth() + 1;
-
-        return entryYear < targetYear &&
-               entryMonth === targetMonth;
-      });
-
-      if (sameMonthMatches.length > 0) {
-        return getClosestEntry(sameMonthMatches, new Date(targetYear - 1, targetMonth - 1, targetDay));
-      }
-
-      const sameYearMatches = pastEntries.filter(entry => {
-        const entryDate = new Date(entry.recordedAt);
-        const entryYear = entryDate.getFullYear();
-
-        return entryYear < targetYear;
-      });
-
-      if (sameYearMatches.length > 0) {
-        return getClosestEntry(sameYearMatches, new Date(targetYear - 1, targetMonth - 1, targetDay));
-      }
-    }
-
-    return getRandomEntry(pastEntries);
-  };
-
-  const getRandomEntry = (entries) => {
-    const randomIndex = Math.floor(Math.random() * entries.length);
-    return entries[randomIndex];
-  };
-
-  const getClosestEntry = (entries, targetDate) => {
-    return entries.reduce((closest, entry) => {
-      const entryDate = new Date(entry.recordedAt);
-      const closestDate = new Date(closest.recordedAt);
-      
-      const entryDiff = Math.abs(entryDate.getTime() - targetDate.getTime());
-      const closestDiff = Math.abs(closestDate.getTime() - targetDate.getTime());
-      
-      return entryDiff < closestDiff ? entry : closest;
-    });
-  };
 
   const handleMemoryClick = () => {
     if (memoryEntry) {
@@ -387,15 +244,6 @@ function Home() {
   };
 
   /**
-   * Format time as MM:SS
-   */
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  /**
    * Calculate recording progress percentage (0-100)
    */
   const getRecordingProgress = () => {
@@ -487,7 +335,7 @@ function Home() {
                   </div>
                 )}
                 
-                {/* Date Label - MOVED TO BOTTOM */}
+                {/* Date Label - Bottom of frame */}
                 <div className="absolute bottom-1.5 left-1.5 right-1.5">
                   <p className="text-[11px] text-white font-semibold drop-shadow-lg text-center px-1.5 py-0.5">
                     {new Date(memoryEntry.recordedAt).toLocaleDateString('en-US', {
@@ -502,7 +350,7 @@ function Home() {
           </div>
         )}
 
-        {/* Recording Timer - TOP LEFT with MAX DURATION (5 minutes) */}
+        {/* Recording Timer - TOP LEFT with current/max time */}
         {recording && (
           <div className="absolute top-4 left-4" style={{ zIndex: 30 }}>
             <div className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 rounded-full">
@@ -534,10 +382,10 @@ function Home() {
           </div>
         )}
 
-        {/* Bottom Navigation - CENTERED HORIZONTALLY */}
+        {/* Bottom Navigation - Centered horizontally */}
         <div className="absolute bottom-0 left-0 right-0 pb-8" style={{ zIndex: 20 }}>
           <div className="flex items-center justify-center gap-16 px-6">
-            {/* Calendar Icon - Bottom Left */}
+            {/* Calendar Icon */}
             <Link
               to="/calendar"
               className="w-12 h-12 flex items-center justify-center hover:bg-black/20 rounded-full transition-colors"
@@ -545,7 +393,7 @@ function Home() {
               <Calendar className="w-7 h-7 text-white drop-shadow-lg" />
             </Link>
 
-            {/* Record Button - Center with RED PROGRESS BAR filling the WHITE BORDER */}
+            {/* Record Button with progress bar */}
             <button
               onClick={handleRecordClick}
               className="relative"
@@ -584,7 +432,7 @@ function Home() {
                 )}
               </svg>
               
-              {/* Button inner shape - SINGLE SMOOTH TRANSITION: white circle → red square */}
+              {/* Button inner shape - smooth transition: white circle → red square */}
               <div 
                 className="w-20 h-20 rounded-full flex items-center justify-center"
                 style={{ position: 'relative', zIndex: 2 }}
@@ -601,7 +449,7 @@ function Home() {
               </div>
             </button>
 
-            {/* Settings Icon - Bottom Right */}
+            {/* Settings Icon */}
             <Link
               to="/settings"
               className="w-12 h-12 flex items-center justify-center hover:bg-black/20 rounded-full transition-colors"

@@ -7,11 +7,15 @@ import Navigation from './components/Navigation';
 import ProtectedRoute from './components/ProtectedRoute';
 import { ThemeProvider } from './components/ThemeProvider';
 
-// Lazy load pages
+// Lazy load pages for better performance
 const Home = lazy(() => import('./pages/Home'));
 const Calendar = lazy(() => import('./pages/Calendar'));
 const Settings = lazy(() => import('./pages/Settings'));
 
+/**
+ * Loading fallback component
+ * Shown while lazy-loaded pages are being fetched
+ */
 const LoadingFallback = () => (
   <div className="flex items-center justify-center min-h-screen bg-black">
     <div className="text-center">
@@ -21,18 +25,33 @@ const LoadingFallback = () => (
   </div>
 );
 
+/**
+ * Page wrapper for authenticated pages with standard layout
+ */
+const PageWrapper = ({ children }) => (
+  <div className="md:pl-64 lg:pl-72">
+    <div className="container mx-auto px-4 md:px-6 py-4 md:py-6 pb-20 md:pb-6 max-w-7xl">
+      {children}
+    </div>
+  </div>
+);
+
 function App() {
-  const { isAuthenticated } = useAuthStore();
-  
+  // Initialize app on mount
   useEffect(() => {
     const initialize = async () => {
       try {
+        // Initialize storage system
         const { storage } = await import('./services/storage');
         await storage.init();
         
+        // Initialize auth
         await useAuthStore.getState().initialize();
+        
+        // Load user settings
         await useSettingsStore.getState().loadSettings();
         
+        // Load entries if authenticated
         const { isAuthenticated } = useAuthStore.getState();
         if (isAuthenticated) {
           await useEntriesStore.getState().loadEntries();
@@ -49,32 +68,37 @@ function App() {
       <BrowserRouter>
         <div className="min-h-screen bg-background">
           <Navigation />
-          {/* No padding for home page (full-screen camera) */}
-          <div className={isAuthenticated && window.location.pathname !== '/' ? "md:pl-64 lg:pl-72" : ""}>
-            <div className={`${isAuthenticated && window.location.pathname !== '/' ? 'container mx-auto px-4 md:px-6 py-4 md:py-6 pb-20 md:pb-6 max-w-7xl' : ''}`}>
-              <Suspense fallback={<LoadingFallback />}>
-                <Routes>
-                  <Route path="/" element={<Home />} />
-                  <Route 
-                    path="/calendar" 
-                    element={
-                      <ProtectedRoute>
-                        <Calendar />
-                      </ProtectedRoute>
-                    } 
-                  />
-                  <Route 
-                    path="/settings" 
-                    element={
-                      <ProtectedRoute>
-                        <Settings />
-                      </ProtectedRoute>
-                    } 
-                  />
-                </Routes>
-              </Suspense>
-            </div>
-          </div>
+          
+          <Suspense fallback={<LoadingFallback />}>
+            <Routes>
+              {/* Home page - full screen, no padding */}
+              <Route path="/" element={<Home />} />
+              
+              {/* Calendar page - with standard layout */}
+              <Route 
+                path="/calendar" 
+                element={
+                  <ProtectedRoute>
+                    <PageWrapper>
+                      <Calendar />
+                    </PageWrapper>
+                  </ProtectedRoute>
+                } 
+              />
+              
+              {/* Settings page - with standard layout */}
+              <Route 
+                path="/settings" 
+                element={
+                  <ProtectedRoute>
+                    <PageWrapper>
+                      <Settings />
+                    </PageWrapper>
+                  </ProtectedRoute>
+                } 
+              />
+            </Routes>
+          </Suspense>
         </div>
       </BrowserRouter>
     </ThemeProvider>

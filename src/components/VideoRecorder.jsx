@@ -4,21 +4,6 @@ import useSettingsStore from '../stores/settings';
 import { uploadVideo, generateThumbnail } from '../services/r2';
 import useAuthStore from '../stores/auth';
 
-// Add keyframes for spinner animation
-const styleSheet = document.styleSheets[0];
-if (styleSheet) {
-  try {
-    styleSheet.insertRule(`
-      @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-      }
-    `, styleSheet.cssRules.length);
-  } catch (e) {
-    // Animation might already exist
-  }
-}
-
 /**
  * VideoRecorder Component
  * 
