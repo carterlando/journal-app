@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { platform } from '../adapters';
 import { supabase } from '../services/supabase';
+import { deleteVideo } from '../services/r2';
 
 /**
  * Journal Entries Store
@@ -227,30 +228,94 @@ const useEntriesStore = create((set, get) => ({
     }
   },
 
+  
   /**
-   * Delete an entry from Supabase
+   * Delete an entry from Supabase AND R2 storage
    * 
    * @param {string} id - Entry ID to delete
    */
   deleteEntry: async (id) => {
     try {
+      console.log('=== DELETE ENTRY START ===');
+      console.log('Entry ID to delete:', id);
+      
+      // Get the entry first to get video URLs
+      const entry = get().entries.find(e => e.id === id);
+      
+      if (!entry) {
+        console.error('Entry not found in state:', id);
+        throw new Error('Entry not found');
+      }
+      
+      console.log('Found entry to delete:', {
+        id: entry.id,
+        videoUrl: entry.videoUrl,
+        thumbnailUrl: entry.thumbnailUrl
+      });
+      
+      // Delete from Supabase database
+      console.log('Deleting from Supabase database...');
       const { error } = await supabase
         .from('entries')
         .delete()
         .eq('id', id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase delete error:', error);
+        throw error;
+      }
+      
+      console.log('✅ Successfully deleted from Supabase');
+
+      // Delete videos from R2 storage
+      console.log('Starting R2 deletion...');
+      
+      // Delete main video
+      if (entry.videoUrl || entry.mediaUrl) {
+        const videoUrl = entry.videoUrl || entry.mediaUrl;
+        console.log('Attempting to delete main video from R2:', videoUrl);
+        
+        try {
+          await deleteVideo(videoUrl);
+          console.log('✅ Successfully deleted main video from R2');
+        } catch (r2Error) {
+          console.error('❌ Failed to delete main video from R2:', r2Error);
+        }
+      } else {
+        console.log('⚠️ No main video URL found');
+      }
+      
+      // Delete thumbnail
+      if (entry.thumbnailUrl) {
+        console.log('Attempting to delete thumbnail from R2:', entry.thumbnailUrl);
+        
+        try {
+          await deleteVideo(entry.thumbnailUrl);
+          console.log('✅ Successfully deleted thumbnail from R2');
+        } catch (r2Error) {
+          console.error('❌ Failed to delete thumbnail from R2:', r2Error);
+        }
+      } else {
+        console.log('⚠️ No thumbnail URL found');
+      }
 
       // Remove from state
+      console.log('Removing from local state...');
       set((state) => ({
         entries: state.entries.filter((entry) => entry.id !== id),
       }));
+      console.log('✅ Removed from state');
       
       // Save to local storage
+      console.log('Saving to local storage...');
       await get()._saveToLocal();
+      console.log('✅ Saved to local storage');
+      
+      console.log('=== DELETE ENTRY COMPLETE ===');
 
     } catch (error) {
-      console.error('Failed to delete entry:', error);
+      console.error('=== DELETE ENTRY FAILED ===');
+      console.error('Error details:', error);
       set({ error: `Failed to delete entry: ${error.message}` });
     }
   },

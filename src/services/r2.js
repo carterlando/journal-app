@@ -66,21 +66,42 @@ export const uploadVideo = async (blob, userId, entryId) => {
  */
 export const deleteVideo = async (videoUrl) => {
   try {
+    console.log('deleteVideo called with URL:', videoUrl);
+    
     // Extract filename from URL
     const url = new URL(videoUrl);
-    const filename = url.pathname.split(`/${BUCKET_NAME}/`)[1];
+    console.log('Parsed URL:', {
+      hostname: url.hostname,
+      pathname: url.pathname
+    });
+    
+    // The pathname should be like: /user-id/year/month/filename.webm
+    // Remove leading slash
+    const filename = url.pathname.substring(1);
+    console.log('Extracted filename/key:', filename);
+
+    if (!filename) {
+      throw new Error('Could not extract filename from URL');
+    }
 
     const command = new DeleteObjectCommand({
       Bucket: BUCKET_NAME,
       Key: filename,
     });
 
+    console.log('Sending DeleteObjectCommand to R2:', {
+      Bucket: BUCKET_NAME,
+      Key: filename
+    });
+
     await r2Client.send(command);
-    console.log('Video deleted from R2:', filename);
+    console.log('✅ Successfully deleted from R2:', filename);
 
   } catch (error) {
-    console.error('R2 delete error:', error);
-    throw new Error('Failed to delete video from cloud storage');
+    console.error('❌ R2 delete error:', error);
+    console.error('Error name:', error.name);
+    console.error('Error message:', error.message);
+    throw new Error(`Failed to delete video from cloud storage: ${error.message}`);
   }
 };
 
