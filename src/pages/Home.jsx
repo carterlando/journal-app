@@ -129,6 +129,12 @@ function Home() {
 
       mediaRecorder.onstop = async () => {
         const blob = new Blob(chunksRef.current, { type: 'video/webm' });
+        
+        // FIXED: Preserve finalDuration before clearing chunks
+        const duration = chunksRef.current.finalDuration;
+        chunksRef.current = [];
+        chunksRef.current.finalDuration = duration;
+        
         // Save asynchronously to prevent UI blocking
         saveRecording(blob);
       };
@@ -168,6 +174,11 @@ function Home() {
    */
   const stopRecording = () => {
     if (mediaRecorderRef.current && recording) {
+      // CRITICAL: Store duration in chunksRef before stopping
+      chunksRef.current.finalDuration = recordingTime;
+      
+      console.log('Stopping recording. Duration:', recordingTime);
+      
       // Stop recording and update UI immediately
       mediaRecorderRef.current.stop();
       setRecording(false);
@@ -192,6 +203,11 @@ function Home() {
     try {
       const entryId = crypto.randomUUID();
       
+      // Get duration from chunksRef (stored during stopRecording)
+      const duration = chunksRef.current.finalDuration || 0;
+      
+      console.log('Saving entry. Duration:', duration);
+      
       const videoUrl = await uploadVideo(blob, user.id, entryId);
       
       let thumbnailUrl = null;
@@ -207,7 +223,7 @@ function Home() {
         videoUrl: videoUrl,
         mediaUrl: videoUrl,
         thumbnailUrl: thumbnailUrl,
-        duration: recordingTime,
+        duration: duration,
         fileSize: blob.size,
         transcription: '',
         tags: [],
@@ -216,6 +232,8 @@ function Home() {
         recordedAt: new Date().toISOString(),
         createdAt: new Date().toISOString(),
       };
+
+      console.log('Entry object being saved:', entry);
 
       await addEntry(entry);
       
@@ -227,6 +245,9 @@ function Home() {
       }, 2000);
       
       setRecordingTime(0);
+      
+      // Clear the stored duration
+      chunksRef.current.finalDuration = 0;
       
     } catch (err) {
       console.error('Save error:', err);
