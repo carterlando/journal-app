@@ -30,7 +30,7 @@ const LoadingFallback = () => (
  */
 const PageWrapper = ({ children }) => (
   <div className="md:pl-64 lg:pl-72">
-    <div className="container mx-auto px-4 md:px-6 py-4 md:py-6 pb-20 md:pb-6 max-w-7xl">
+    <div className="container mx-auto max-w-7xl">
       {children}
     </div>
   </div>

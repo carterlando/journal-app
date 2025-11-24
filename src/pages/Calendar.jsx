@@ -117,11 +117,11 @@ function Calendar() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header - z-50 to be above everything */}
-      <div className="sticky top-0 z-50 bg-background">
+      <div className="sticky top-0 z-50 bg-background border-border">
         <div className="px-3 py-4 flex items-center justify-between">
-          <h1 className="text-xl font-bold text-foreground">
+          <h2 className="text-xl font-bold text-foreground">
             {monthNames[selectedDate.getMonth()]} {selectedDate.getDate()}, {selectedDate.getFullYear()}
-          </h1>
+          </h2>
           <button 
             onClick={() => setShowMonthPicker(!showMonthPicker)}
             className="w-10 h-10 rounded-xl bg-muted hover:bg-muted/80 flex items-center justify-center transition-colors"
@@ -131,23 +131,26 @@ function Calendar() {
         </div>
       </div>
 
-      {/* Month Picker - z-50 when open */}
+      {/* Month Picker */}
       {showMonthPicker && (
         <div className="fixed inset-0 bg-background z-50 overflow-y-auto">
-          <div className="sticky top-0 bg-background border-b border-border px-3 py-4">
-            <div className="flex items-center justify-between">
+          <div className="sticky top-0 bg-background border-b border-border">
+            <div className="px-3 py-4 flex items-center justify-between">
+              {/* Month/Year on the left with navigation arrows - fixed width container */}
               <div className="flex items-center gap-3">
-                <button onClick={previousMonth} className="w-9 h-9 rounded-full hover:bg-muted flex items-center justify-center">
-                  <ChevronLeft className="w-5 h-5" />
-                </button>
-                <h2 className="text-lg font-semibold">
+                <h2 className="text-xl font-bold text-foreground min-w-[150px]">
                   {monthNames[monthPickerDate.getMonth()]} {monthPickerDate.getFullYear()}
                 </h2>
-                <button onClick={nextMonth} className="w-9 h-9 rounded-full hover:bg-muted flex items-center justify-center">
-                  <ChevronRight className="w-5 h-5" />
-                </button>
+                <div className="flex items-center gap-1">
+                  <button onClick={previousMonth} className="w-9 h-9 rounded-full hover:bg-muted flex items-center justify-center">
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
+                  <button onClick={nextMonth} className="w-9 h-9 rounded-full hover:bg-muted flex items-center justify-center">
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
-              <button onClick={() => setShowMonthPicker(false)} className="w-9 h-9 rounded-full hover:bg-muted flex items-center justify-center">
+              <button onClick={() => setShowMonthPicker(false)} className="w-10 h-10 rounded-full hover:bg-muted flex items-center justify-center">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -244,8 +247,9 @@ function Calendar() {
                   key={entry.id}
                   className={`
                     rounded-3xl overflow-hidden bg-muted relative
-                    ${selectedEntries.length === 1 ? 'aspect-[9/16] w-full' : 'aspect-[9/16]'}
+                    ${selectedEntries.length === 1 ? 'w-full' : 'aspect-[9/16]'}
                   `}
+                  style={selectedEntries.length === 1 ? { aspectRatio: '1' } : {}}
                 >
                   {/* Thumbnail - clickable to open reel */}
                   <button
