@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
-import { Camera, Calendar, Settings, Check } from 'lucide-react';
+import { Camera, Check } from 'lucide-react';
 import useEntriesStore from '../stores/entries';
 import useAuthStore from '../stores/auth';
 import AuthModal from '../components/AuthModal';
 import ReelViewer from '../components/ReelViewer';
+// REMOVED: import Navigation from '../components/Navigation';
 import { uploadVideo, generateThumbnail } from '../services/r2';
 import { findMemoryEntry } from '../utils/memorySearch';
 import { useVideoLoop } from '../hooks/useVideoLoop';
@@ -22,6 +22,10 @@ import { formatTime } from '../utils/dateHelpers';
  * - Max recording duration: 5 minutes (300 seconds)
  * - Async save to prevent frame drops
  * - Auto-stop and save at max duration
+ * 
+ * Recording functionality:
+ * - Attaches to the static record button in Navigation.jsx via DOM manipulation
+ * - Updates button appearance and progress ring during recording
  */
 function Home() {
   const { isAuthenticated, user } = useAuthStore();
@@ -46,7 +50,10 @@ function Home() {
   // Maximum recording duration in seconds (5 minutes)
   const MAX_DURATION = 300;
 
-  // Initialize camera preview
+  /**
+   * Initialize camera preview
+   * Request user media with video and audio
+   */
   useEffect(() => {
     if (!isAuthenticated) return;
 
@@ -79,17 +86,24 @@ function Home() {
     };
   }, [isAuthenticated]);
 
-  // Set video stream to video element
+  /**
+   * Set video stream to video element
+   */
   useEffect(() => {
     if (stream && videoRef.current) {
       videoRef.current.srcObject = stream;
     }
   }, [stream]);
 
-  // Use custom hook for memory video loop (3 seconds)
+  /**
+   * Use custom hook for memory video loop (3 seconds)
+   */
   useVideoLoop(memoryVideoRef, memoryEntry?.mediaUrl, 3);
 
-  // Find memory entry using cascading search
+  /**
+   * Find memory entry using cascading search
+   * Shows video from same date in previous years
+   */
   useEffect(() => {
     if (!isAuthenticated || loading || entries.length === 0 || memoryCalculated) {
       return;
@@ -101,6 +115,71 @@ function Home() {
     setMemoryCalculated(true);
   }, [isAuthenticated, entries, loading, memoryCalculated]);
 
+  /**
+   * Attach record button functionality to Navigation's static button
+   * Updates button appearance and progress during recording
+   */
+  useEffect(() => {
+    const recordButton = document.getElementById('record-button');
+    const recordButtonInner = document.getElementById('record-button-inner');
+    const progressBg = document.getElementById('record-progress-bg');
+    const progressFill = document.getElementById('record-progress-fill');
+
+    if (!recordButton) return;
+
+    // Attach click handler
+    recordButton.onclick = handleRecordClick;
+
+    // Update button disabled state
+    recordButton.disabled = !stream || saving;
+
+    // Update button appearance based on recording state
+    if (recordButtonInner) {
+      if (recording) {
+        // Transform to red square
+        recordButtonInner.style.width = '2rem';
+        recordButtonInner.style.height = '2rem';
+        recordButtonInner.style.borderRadius = '0.375rem';
+        recordButtonInner.style.backgroundColor = '#dc2626';
+      } else {
+        // White circle
+        recordButtonInner.style.width = '4rem';
+        recordButtonInner.style.height = '4rem';
+        recordButtonInner.style.borderRadius = '50%';
+        recordButtonInner.style.backgroundColor = 'white';
+      }
+    }
+
+    // Update progress ring
+    if (progressBg) {
+      progressBg.style.opacity = recording ? '0.3' : '1';
+    }
+
+    if (progressFill) {
+      if (recording) {
+        progressFill.style.display = 'block';
+        const progress = (recordingTime / MAX_DURATION) * 100;
+        const circumference = 2 * Math.PI * 36;
+        progressFill.style.strokeDashoffset = `${circumference * (1 - progress / 100)}`;
+      } else {
+        progressFill.style.display = 'none';
+        // Reset progress for next recording
+        progressFill.style.strokeDashoffset = `${2 * Math.PI * 36}`;
+      }
+    }
+
+    // Cleanup
+    return () => {
+      if (recordButton) {
+        recordButton.onclick = null;
+      }
+    };
+  }, [recording, stream, saving, recordingTime]);
+
+  /**
+   * Handle memory video click
+   * Opens reel viewer with the memory entry
+   */
   const handleMemoryClick = () => {
     if (memoryEntry) {
       setShowReel(true);
@@ -109,6 +188,7 @@ function Home() {
 
   /**
    * Start recording video
+   * Sets up MediaRecorder and starts capturing chunks
    */
   const startRecording = () => {
     if (!stream || recording) return;
@@ -256,6 +336,10 @@ function Home() {
     }
   };
 
+  /**
+   * Handle record button click
+   * Toggles between start and stop recording
+   */
   const handleRecordClick = () => {
     if (recording) {
       stopRecording();
@@ -264,13 +348,7 @@ function Home() {
     }
   };
 
-  /**
-   * Calculate recording progress percentage (0-100)
-   */
-  const getRecordingProgress = () => {
-    return (recordingTime / MAX_DURATION) * 100;
-  };
-
+  // Show auth modal if not authenticated
   if (!isAuthenticated) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-black">
@@ -333,7 +411,6 @@ function Home() {
             style={{ zIndex: 30 }}
           >
             <div className="relative">
-              {/* Video with 3-second loop */}
               <div className="aspect-[3/4] rounded-2xl overflow-hidden border-1 border-white/80 group-hover:border-white/100 transition-colors shadow-lg relative">
                 {memoryEntry.mediaUrl ? (
                   <video
@@ -356,7 +433,6 @@ function Home() {
                   </div>
                 )}
                 
-                {/* Date Label - Bottom of frame */}
                 <div className="absolute bottom-1.5 left-1.5 right-1.5">
                   <p className="text-[11px] text-white font-semibold drop-shadow-lg text-center px-1.5 py-0.5">
                     {new Date(memoryEntry.recordedAt).toLocaleDateString('en-US', {
@@ -403,82 +479,7 @@ function Home() {
           </div>
         )}
 
-        {/* Bottom Navigation - Centered horizontally */}
-        <div className="absolute bottom-0 left-0 right-0 pb-8" style={{ zIndex: 20 }}>
-          <div className="flex items-center justify-center gap-16 px-6">
-            {/* Calendar Icon */}
-            <Link
-              to="/calendar"
-              className="w-12 h-12 flex items-center justify-center hover:bg-black/20 rounded-full transition-colors"
-            >
-              <Calendar className="w-7 h-7 text-white drop-shadow-lg" />
-            </Link>
-
-            {/* Record Button with progress bar */}
-            <button
-              onClick={handleRecordClick}
-              className="relative"
-              disabled={!stream || saving}
-            >
-              {/* Progress ring that fills the border (RED) */}
-              <svg
-                className="absolute top-0 left-0 w-20 h-20 -rotate-90"
-                style={{ zIndex: 1 }}
-              >
-                {/* Background white border circle */}
-                <circle
-                  cx="40"
-                  cy="40"
-                  r="36"
-                  stroke="white"
-                  strokeWidth="4"
-                  fill="none"
-                  opacity={recording ? "0.3" : "1"}
-                  className="transition-opacity duration-500 ease-in-out"
-                />
-                {/* Red progress circle (only visible when recording) */}
-                {recording && (
-                  <circle
-                    cx="40"
-                    cy="40"
-                    r="36"
-                    stroke="#dc2626"
-                    strokeWidth="4"
-                    fill="none"
-                    strokeDasharray={`${2 * Math.PI * 36}`}
-                    strokeDashoffset={`${2 * Math.PI * 36 * (1 - getRecordingProgress() / 100)}`}
-                    className="transition-all duration-200 ease-linear"
-                    strokeLinecap="round"
-                  />
-                )}
-              </svg>
-              
-              {/* Button inner shape - smooth transition: white circle → red square */}
-              <div 
-                className="w-20 h-20 rounded-full flex items-center justify-center"
-                style={{ position: 'relative', zIndex: 2 }}
-              >
-                <div 
-                  style={{
-                    width: recording ? '2rem' : '4rem',
-                    height: recording ? '2rem' : '4rem',
-                    borderRadius: recording ? '0.375rem' : '50%',
-                    backgroundColor: recording ? '#dc2626' : 'white',
-                    transition: 'all 0.3s ease-in-out',
-                  }}
-                />
-              </div>
-            </button>
-
-            {/* Settings Icon */}
-            <Link
-              to="/settings"
-              className="w-12 h-12 flex items-center justify-center hover:bg-black/20 rounded-full transition-colors"
-            >
-              <Settings className="w-7 h-7 text-white drop-shadow-lg" />
-            </Link>
-          </div>
-        </div>
+        {/* Navigation is rendered globally in App.jsx */}
       </div>
 
       {/* Reel Viewer Modal */}

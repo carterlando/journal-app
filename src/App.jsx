@@ -25,17 +25,6 @@ const LoadingFallback = () => (
   </div>
 );
 
-/**
- * Page wrapper for authenticated pages with standard layout
- */
-const PageWrapper = ({ children }) => (
-  <div className="md:pl-64 lg:pl-72">
-    <div className="container mx-auto max-w-7xl">
-      {children}
-    </div>
-  </div>
-);
-
 function App() {
   // Initialize app on mount
   useEffect(() => {
@@ -67,33 +56,30 @@ function App() {
     <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
       <BrowserRouter>
         <div className="min-h-screen bg-background">
+          {/* Global Navigation */}
           <Navigation />
           
           <Suspense fallback={<LoadingFallback />}>
             <Routes>
-              {/* Home page - full screen, no padding */}
+              {/* Home page - full screen camera view */}
               <Route path="/" element={<Home />} />
               
-              {/* Calendar page - with standard layout */}
+              {/* Calendar page - protected route */}
               <Route 
                 path="/calendar" 
                 element={
                   <ProtectedRoute>
-                    <PageWrapper>
-                      <Calendar />
-                    </PageWrapper>
+                    <Calendar />
                   </ProtectedRoute>
                 } 
               />
               
-              {/* Settings page - with standard layout */}
+              {/* Settings page - protected route */}
               <Route 
                 path="/settings" 
                 element={
                   <ProtectedRoute>
-                    <PageWrapper>
-                      <Settings />
-                    </PageWrapper>
+                    <Settings />
                   </ProtectedRoute>
                 } 
               />

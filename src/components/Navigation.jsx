@@ -1,122 +1,154 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Calendar, Settings, LogOut, User } from 'lucide-react';
-import { useState } from 'react';
+import { Calendar, Settings, Home } from 'lucide-react';
 import useAuthStore from '../stores/auth';
-import AuthModal from './AuthModal';
+import { useTheme } from 'next-themes';
 
 /**
  * Navigation Component
- * Hidden on home page (camera view)
- * Shows only on Calendar and Settings pages
+ * 
+ * Bottom navigation bar with static layout
+ * Shows: Calendar | Record Button | Settings
+ * - Layout and design are defined here
+ * - Record button functionality is handled by Home.jsx via DOM manipulation
+ * - On non-home pages: Record button links to home with home icon
  */
 function Navigation() {
   const location = useLocation();
-  const { isAuthenticated, user, logout } = useAuthStore();
-  const [showAuthModal, setShowAuthModal] = useState(false);
+  const { isAuthenticated } = useAuthStore();
+  const { theme, systemTheme } = useTheme();
   
-  const isActive = (path) => location.pathname === path;
   const isHomePage = location.pathname === '/';
-
-  // Mobile nav styling
-  const mobileNavClass = (path) => `
-    flex flex-col items-center justify-center flex-1 py-3 transition-colors
-    ${isActive(path) ? 'text-violet-400' : 'text-zinc-400 hover:text-zinc-200'}
-  `;
-
-  // Desktop sidebar nav styling
-  const sidebarNavClass = (path) => `
-    group flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all relative overflow-hidden
-    ${isActive(path)
-      ? 'bg-violet-600/20 text-violet-400'
-      : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/5'
-    }
-  `;
+  
+  // Determine if we're in light mode
+  const currentTheme = theme === 'system' ? systemTheme : theme;
+  const isLightMode = currentTheme === 'light';
 
   if (!isAuthenticated) {
     return null;
   }
 
-  // Hide navigation on home page (camera view)
-  if (isHomePage) {
-    return null;
-  }
-
   return (
     <>
-      {/* Desktop/Tablet Sidebar */}
-      <aside className="hidden md:flex md:flex-col md:fixed md:left-0 md:top-0 md:h-screen md:w-64 lg:w-72 md:border-r md:border-border md:bg-card md:z-40">
-        <div className="flex flex-col h-full p-6">
-          {/* Logo */}
-          <Link to="/" className="mb-10">
-            <h1 className="text-2xl font-bold text-violet-600 dark:text-violet-400">
-              Story Time
-            </h1>
+      {/* Bottom Navigation - Fixed to bottom of viewport */}
+      <div className="fixed bottom-0 left-0 right-0 pb-8" style={{ zIndex: 20 }}>
+        <div className="flex items-center justify-center gap-16 px-6">
+          {/* Calendar Icon */}
+          <Link
+            to="/calendar"
+            className={`w-12 h-12 flex items-center justify-center rounded-full transition-colors ${
+              isHomePage 
+                ? 'hover:bg-black/20' 
+                : isLightMode 
+                  ? 'bg-black/80 hover:bg-black/90' 
+                  : 'hover:bg-black/20'
+            }`}
+          >
+            <Calendar className={`w-7 h-7 drop-shadow-lg ${
+              isHomePage || isLightMode ? 'text-white' : 'text-white'
+            }`} strokeWidth={1.5} />
           </Link>
 
-          {/* Navigation Links */}
-          <nav className="flex-1 space-y-2">
-            <Link to="/" className={sidebarNavClass('/')}>
-              <Home className="w-6 h-6" />
-              <span className="text-base font-medium">Home</span>
-            </Link>
-            
-            <Link to="/calendar" className={sidebarNavClass('/calendar')}>
-              <Calendar className="w-6 h-6" />
-              <span className="text-base font-medium">Calendar</span>
-            </Link>
-            
-            <Link to="/settings" className={sidebarNavClass('/settings')}>
-              <Settings className="w-6 h-6" />
-              <span className="text-base font-medium">Settings</span>
-            </Link>
-          </nav>
-
-          {/* Footer with User Info */}
-          <div className="mt-auto pt-6 border-t border-border space-y-3">
-            <div className="flex items-center gap-3 px-4 py-3 bg-primary/5 rounded-lg">
-              <User className="w-4 h-4 text-primary" />
-              <p className="text-xs text-foreground truncate flex-1">
-                {user?.email}
-              </p>
-            </div>
-            
+          {/* Record Button - Static design, functionality added by Home.jsx */}
+          {isHomePage ? (
+            // On home page: button element for Home.jsx to control
             <button
-              onClick={logout}
-              className="flex items-center gap-3 px-4 py-3 text-sm text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg w-full transition-colors"
+              id="record-button"
+              className="relative"
             >
-              <LogOut className="w-4 h-4" />
-              Sign Out
+              {/* Progress ring that fills the border (RED) */}
+              <svg
+                id="record-progress-ring"
+                className="absolute top-0 left-0 w-20 h-20 -rotate-90"
+                style={{ zIndex: 1 }}
+              >
+                {/* Background white border circle */}
+                <circle
+                  id="record-progress-bg"
+                  cx="40"
+                  cy="40"
+                  r="36"
+                  stroke="white"
+                  strokeWidth="4"
+                  fill="none"
+                  opacity="1"
+                  className="transition-opacity duration-500 ease-in-out"
+                />
+                {/* Red progress circle (only visible when recording) */}
+                <circle
+                  id="record-progress-fill"
+                  cx="40"
+                  cy="40"
+                  r="36"
+                  stroke="#dc2626"
+                  strokeWidth="4"
+                  fill="none"
+                  strokeDasharray={`${2 * Math.PI * 36}`}
+                  strokeDashoffset={`${2 * Math.PI * 36}`}
+                  className="transition-all duration-200 ease-linear"
+                  strokeLinecap="round"
+                  style={{ display: 'none' }}
+                />
+              </svg>
+              
+              {/* Button inner shape - smooth transition: white circle → red square */}
+              <div 
+                className="w-20 h-20 rounded-full flex items-center justify-center"
+                style={{ position: 'relative', zIndex: 2 }}
+              >
+                <div 
+                  id="record-button-inner"
+                  style={{
+                    width: '4rem',
+                    height: '4rem',
+                    borderRadius: '50%',
+                    backgroundColor: 'white',
+                    transition: 'all 0.3s ease-in-out',
+                  }}
+                />
+              </div>
             </button>
-          </div>
-        </div>
-      </aside>
+          ) : (
+            // On other pages: link to home with home icon (no outer ring)
+            <Link
+              to="/"
+              className="relative"
+            >
+              <div 
+                className="w-20 h-20 rounded-full flex items-center justify-center"
+                style={{ position: 'relative', zIndex: 2 }}
+              >
+                <div 
+                  className="flex items-center justify-center"
+                  style={{
+                    width: '4rem',
+                    height: '4rem',
+                    borderRadius: '50%',
+                    backgroundColor: 'white',
+                  }}
+                >
+                  <Home className="w-8 h-8 text-black" strokeWidth={1.5} />
+                </div>
+              </div>
+            </Link>
+          )}
 
-      {/* Mobile Bottom Navigation */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-sm border-t border-border z-40">
-        <div className="flex justify-around">
-          <Link to="/" className={mobileNavClass('/')}>
-            <Home className="w-6 h-6" />
-            <span className="text-xs mt-1">Home</span>
-          </Link>
-          
-          <Link to="/calendar" className={mobileNavClass('/calendar')}>
-            <Calendar className="w-6 h-6" />
-            <span className="text-xs mt-1">Calendar</span>
-          </Link>
-          
-          <Link to="/settings" className={mobileNavClass('/settings')}>
-            <Settings className="w-6 h-6" />
-            <span className="text-xs mt-1">Settings</span>
+          {/* Settings Icon */}
+          <Link
+            to="/settings"
+            className={`w-12 h-12 flex items-center justify-center rounded-full transition-colors ${
+              isHomePage 
+                ? 'hover:bg-black/20' 
+                : isLightMode 
+                  ? 'bg-black/80 hover:bg-black/90' 
+                  : 'hover:bg-black/20'
+            }`}
+          >
+            <Settings className={`w-7 h-7 drop-shadow-lg ${
+              isHomePage || isLightMode ? 'text-white' : 'text-white'
+            }`} strokeWidth={1.5} />
           </Link>
         </div>
       </div>
-
-      {showAuthModal && (
-        <AuthModal
-          onClose={() => setShowAuthModal(false)}
-          onSuccess={() => setShowAuthModal(false)}
-        />
-      )}
     </>
   );
 }
