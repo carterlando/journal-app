@@ -6,6 +6,7 @@ import useSettingsStore from './stores/settings';
 import Navigation from './components/Navigation';
 import ProtectedRoute from './components/ProtectedRoute';
 import { ThemeProvider } from './components/ThemeProvider';
+import { uploadQueue } from './services/uploadQueue';
 
 // Lazy load pages for better performance
 const Home = lazy(() => import('./pages/Home'));
@@ -30,7 +31,7 @@ function App() {
   useEffect(() => {
     const initialize = async () => {
       try {
-        // Initialize storage system
+        // Initialize storage system (IndexedDB)
         const { storage } = await import('./services/storage');
         await storage.init();
         
@@ -43,7 +44,13 @@ function App() {
         // Load entries if authenticated
         const { isAuthenticated } = useAuthStore.getState();
         if (isAuthenticated) {
+          // Load entries from Supabase
           await useEntriesStore.getState().loadEntries();
+          
+          // Process upload queue (resume any pending/failed uploads)
+          console.log('🔄 Processing upload queue...');
+          await uploadQueue.processQueue();
+          console.log('✅ Upload queue processed');
         }
       } catch (error) {
         console.error('Initialization error:', error);

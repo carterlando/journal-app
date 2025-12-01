@@ -4,8 +4,8 @@ import useEntriesStore from '../stores/entries';
 import useAuthStore from '../stores/auth';
 import AuthModal from '../components/AuthModal';
 import ReelViewer from '../components/ReelViewer';
-// REMOVED: import Navigation from '../components/Navigation';
-import { uploadVideo, generateThumbnail } from '../services/r2';
+import { uploadQueue } from '../services/uploadQueue';
+import { generateThumbnail } from '../services/r2';
 import { findMemoryEntry } from '../utils/memorySearch';
 import { useVideoLoop } from '../hooks/useVideoLoop';
 import { formatTime } from '../utils/dateHelpers';
@@ -20,16 +20,17 @@ import { formatTime } from '../utils/dateHelpers';
  * - Record button with circular progress bar (center bottom)
  * - Navigation icons (calendar left, settings right)
  * - Max recording duration: 5 minutes (300 seconds)
- * - Async save to prevent frame drops
+ * - Reliable upload with retry via upload queue
  * - Auto-stop and save at max duration
  * 
  * Recording functionality:
  * - Attaches to the static record button in Navigation.jsx via DOM manipulation
  * - Updates button appearance and progress ring during recording
+ * - Saves to IndexedDB immediately, uploads with retry in background
  */
 function Home() {
   const { isAuthenticated, user } = useAuthStore();
-  const { entries, loading, addEntry } = useEntriesStore();
+  const { entries, loading } = useEntriesStore();
   const [memoryEntry, setMemoryEntry] = useState(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showReel, setShowReel] = useState(false);
@@ -210,12 +211,12 @@ function Home() {
       mediaRecorder.onstop = async () => {
         const blob = new Blob(chunksRef.current, { type: 'video/webm' });
         
-        // FIXED: Preserve finalDuration before clearing chunks
+        // Get duration that was stored during stopRecording
         const duration = chunksRef.current.finalDuration;
         chunksRef.current = [];
         chunksRef.current.finalDuration = duration;
         
-        // Save asynchronously to prevent UI blocking
+        // Save to upload queue (with retry logic)
         saveRecording(blob);
       };
 
@@ -230,7 +231,6 @@ function Home() {
           const newTime = prev + 1;
           // Auto-stop at max duration
           if (newTime >= MAX_DURATION) {
-            // Stop recording immediately, save will happen in onstop
             if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
               mediaRecorderRef.current.stop();
               setRecording(false);
@@ -250,29 +250,27 @@ function Home() {
 
   /**
    * Stop recording video
-   * UI updates immediately, save happens asynchronously
+   * UI updates immediately, save happens in onstop
    */
   const stopRecording = () => {
     if (mediaRecorderRef.current && recording) {
-      // CRITICAL: Store duration in chunksRef before stopping
+      // Store duration before stopping
       chunksRef.current.finalDuration = recordingTime;
       
       console.log('Stopping recording. Duration:', recordingTime);
       
-      // Stop recording and update UI immediately
       mediaRecorderRef.current.stop();
       setRecording(false);
       
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
-      // Save will happen in mediaRecorder.onstop
     }
   };
 
   /**
-   * Save recording to Cloudflare R2 and Supabase
-   * Runs asynchronously to prevent blocking UI
+   * Save recording to upload queue
+   * Adds to IndexedDB and starts background upload with retry
    */
   const saveRecording = async (blob) => {
     if (!user) return;
@@ -282,57 +280,50 @@ function Home() {
 
     try {
       const entryId = crypto.randomUUID();
-      
-      // Get duration from chunksRef (stored during stopRecording)
       const duration = chunksRef.current.finalDuration || 0;
       
-      console.log('Saving entry. Duration:', duration);
+      console.log('Saving recording to upload queue. Duration:', duration);
       
-      const videoUrl = await uploadVideo(blob, user.id, entryId);
-      
-      let thumbnailUrl = null;
+      // Generate thumbnail
+      let thumbnailBlob = null;
       try {
-        const thumbnailBlob = await generateThumbnail(blob);
-        thumbnailUrl = await uploadVideo(thumbnailBlob, user.id, `${entryId}_thumb`);
+        thumbnailBlob = await generateThumbnail(blob);
+        console.log('✅ Thumbnail generated');
       } catch (err) {
         console.error('Thumbnail generation failed:', err);
       }
       
+      // Create entry metadata
       const entry = {
         id: entryId,
-        videoUrl: videoUrl,
-        mediaUrl: videoUrl,
-        thumbnailUrl: thumbnailUrl,
         duration: duration,
-        fileSize: blob.size,
         transcription: '',
         tags: [],
         type: 'video',
-        storageType: 'cloud',
         recordedAt: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
       };
 
-      console.log('Entry object being saved:', entry);
-
-      await addEntry(entry);
+      // Add to upload queue
+      // This saves to IndexedDB and starts upload with retry logic
+      await uploadQueue.addToQueue(entry, blob, thumbnailBlob);
+      
+      console.log('✅ Added to upload queue');
       
       setSaving(false);
       setSaved(true);
       
+      // Hide "saved" message after 2 seconds
       setTimeout(() => {
         setSaved(false);
       }, 2000);
       
       setRecordingTime(0);
-      
-      // Clear the stored duration
       chunksRef.current.finalDuration = 0;
       
     } catch (err) {
       console.error('Save error:', err);
       setSaving(false);
-      alert('Failed to save recording');
+      alert('Failed to save recording. Please try again.');
     }
   };
 
