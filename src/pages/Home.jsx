@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Camera, Check } from 'lucide-react';
 import useEntriesStore from '../stores/entries';
 import useAuthStore from '../stores/auth';
@@ -23,6 +24,7 @@ import { formatTime } from '../utils/dateHelpers';
  * - Reliable upload with retry via upload queue
  * - Auto-stop and save at max duration
  * - Optimized for 720p30fps recording
+ * - Auto-record when navigating with ?record=true
  * 
  * Recording functionality:
  * - Attaches to the static record button in Navigation.jsx via DOM manipulation
@@ -32,6 +34,7 @@ import { formatTime } from '../utils/dateHelpers';
 function Home() {
   const { isAuthenticated, user } = useAuthStore();
   const { entries, loading } = useEntriesStore();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [memoryEntry, setMemoryEntry] = useState(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showReel, setShowReel] = useState(false);
@@ -42,6 +45,7 @@ function Home() {
   const [recordingTime, setRecordingTime] = useState(0);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [autoRecordTriggered, setAutoRecordTriggered] = useState(false);
   
   const videoRef = useRef(null);
   const memoryVideoRef = useRef(null);
@@ -102,6 +106,34 @@ function Home() {
       videoRef.current.srcObject = stream;
     }
   }, [stream]);
+
+  /**
+   * Auto-start recording when navigating with ?record=true
+   * Waits for camera stream to be ready
+   */
+  useEffect(() => {
+    const shouldAutoRecord = searchParams.get('record') === 'true';
+    
+    if (shouldAutoRecord && stream && !recording && !autoRecordTriggered && !saving) {
+      // Clear the URL param
+      setSearchParams({}, { replace: true });
+      setAutoRecordTriggered(true);
+      
+      // Small delay to ensure everything is ready
+      setTimeout(() => {
+        startRecording();
+      }, 300);
+    }
+  }, [searchParams, stream, recording, autoRecordTriggered, saving]);
+
+  /**
+   * Reset auto-record flag when leaving and coming back
+   */
+  useEffect(() => {
+    return () => {
+      setAutoRecordTriggered(false);
+    };
+  }, []);
 
   /**
    * Use custom hook for memory video loop (3 seconds)
