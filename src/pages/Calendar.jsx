@@ -8,6 +8,13 @@ import { useVideoLoop } from '../hooks/useVideoLoop';
 
 /**
  * Calendar Page - Redesigned
+ * 
+ * Features:
+ * - Week selector with entry indicators
+ * - Month picker overlay for date navigation
+ * - Video entry previews with loop playback
+ * - Reel viewer for full-screen playback
+ * - Frosted glass header
  */
 function Calendar() {
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -20,10 +27,11 @@ function Calendar() {
   // Constants
   const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-  const moodEmojis = ['😢', '😕', '😐', '🙂', '😊'];
-  const moodCounts = [0, 1, 1, 0, 0];
 
-  // Get week days based on selected date
+  /**
+   * Get array of dates for the current week (Mon-Sun)
+   * Based on the currently selected date
+   */
   const getWeekDays = () => {
     const curr = new Date(selectedDate);
     const week = [];
@@ -43,6 +51,9 @@ function Calendar() {
 
   const weekDays = getWeekDays();
 
+  /**
+   * Filter entries for a specific date
+   */
   const getEntriesForDate = (date) => {
     return entries.filter(entry => {
       const entryDate = new Date(entry.recordedAt);
@@ -54,24 +65,36 @@ function Calendar() {
 
   const selectedEntries = getEntriesForDate(selectedDate);
 
+  /**
+   * Check if a date matches the selected date
+   */
   const isSelected = (date) => {
     return date.getFullYear() === selectedDate.getFullYear() &&
            date.getMonth() === selectedDate.getMonth() &&
            date.getDate() === selectedDate.getDate();
   };
 
+  /**
+   * Check if a date is today
+   */
   const isToday = (date) => {
     const today = new Date();
     return date.getFullYear() === today.getFullYear() &&
-           date.getMonth() === today.getMonth() &&
-           date.getDate() === today.getDate();
+           today.getMonth() === date.getMonth() &&
+           today.getDate() === date.getDate();
   };
 
+  /**
+   * Open reel viewer at specific entry index
+   */
   const handleEntryClick = (index) => {
     setSelectedIndex(index);
     setShowReel(true);
   };
 
+  /**
+   * Delete entry with confirmation
+   */
   const handleDeleteEntry = async (e, entryId) => {
     e.stopPropagation();
     if (window.confirm('Delete this entry?')) {
@@ -79,6 +102,10 @@ function Calendar() {
     }
   };
 
+  /**
+   * Generate calendar grid days for month picker
+   * Includes empty cells for proper alignment
+   */
   const getMonthCalendarDays = () => {
     const year = monthPickerDate.getFullYear();
     const month = monthPickerDate.getMonth();
@@ -96,6 +123,9 @@ function Calendar() {
     return days;
   };
 
+  /**
+   * Handle day selection from month picker
+   */
   const handleMonthDayClick = (day) => {
     if (!day) return;
     const newDate = new Date(
@@ -117,15 +147,15 @@ function Calendar() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header - z-50 to be above everything */}
-      <div className="sticky top-0 z-50 bg-background border-border">
+      {/* Header - z-50, frosted glass background */}
+      <div className="sticky top-0 z-50 bg-background/60 backdrop-blur-xl border-b border-border/30">
         <div className="px-3 py-4 flex items-center justify-between">
           <h2 className="text-xl font-bold text-foreground">
             {monthNames[selectedDate.getMonth()]} {selectedDate.getDate()}, {selectedDate.getFullYear()}
           </h2>
           <button 
             onClick={() => setShowMonthPicker(!showMonthPicker)}
-            className="w-10 h-10 rounded-xl bg-muted hover:bg-muted/80 flex items-center justify-center transition-colors"
+            className="w-10 h-10 rounded-xl bg-muted hover:bg-muted/80 flex items-center justify-center transition-colors mr-0.5"
           >
             <CalendarIcon className="w-5 h-5 text-foreground" />
           </button>
@@ -135,7 +165,7 @@ function Calendar() {
       {/* Month Picker */}
       {showMonthPicker && (
         <div className="fixed inset-0 bg-background z-50 overflow-y-auto">
-          <div className="sticky top-0 bg-background border-b border-border">
+          <div className="sticky top-0 bg-background/60 backdrop-blur-xl border-b border-border/30">
             <div className="px-3 py-4 flex items-center justify-between">
               {/* Month/Year on the left with navigation arrows - fixed width container */}
               <div className="flex items-center gap-3">
@@ -197,7 +227,7 @@ function Calendar() {
         </div>
       )}
 
-      <div className="px-3 pb-24">
+      <div className="px-3 pb-32">
         {/* Week Selector */}
         <div className="mt-4 flex gap-1">
           {weekDays.map((day, index) => {
@@ -226,19 +256,6 @@ function Calendar() {
           })}
         </div>
 
-        {/* Mood Tracker */}
-        <div className="mt-6 bg-card rounded-3xl p-4 border border-border">
-          <h2 className="text-sm font-semibold text-foreground mb-3">Mood tracker this week</h2>
-          <div className="flex justify-between items-end">
-            {moodEmojis.map((emoji, index) => (
-              <div key={index} className="flex flex-col items-center">
-                <span className="text-2xl mb-1">{emoji}</span>
-                <span className="text-xs font-medium text-muted-foreground">{moodCounts[index]}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
         {/* Entries - z-10 so buttons stay below header (z-50) */}
         <div className="mt-6">
           {selectedEntries.length > 0 ? (
@@ -246,11 +263,7 @@ function Calendar() {
               {selectedEntries.map((entry, index) => (
                 <div
                   key={entry.id}
-                  className={`
-                    rounded-3xl overflow-hidden bg-muted relative
-                    ${selectedEntries.length === 1 ? 'w-full' : 'aspect-[9/16]'}
-                  `}
-                  style={selectedEntries.length === 1 ? { aspectRatio: '1' } : {}}
+                  className="rounded-3xl overflow-hidden bg-muted relative aspect-[9/16]"
                 >
                   {/* Video Loop - clickable to open reel */}
                   <button
@@ -267,14 +280,14 @@ function Calendar() {
                     </div>
                   </div>
 
-                  {/* Duration badge - z-10 */}
+                  {/* Duration badge - top left, z-10 */}
                   {entry.duration && (
-                    <div className="absolute bottom-2 left-2 px-2 py-1 bg-black/80 backdrop-blur-sm rounded-md z-10 pointer-events-none">
+                    <div className="absolute top-2 left-2 px-2 py-1 bg-black/80 backdrop-blur-sm rounded-md z-10 pointer-events-none">
                       <span className="text-white text-xs font-semibold">{formatTime(entry.duration)}</span>
                     </div>
                   )}
 
-                  {/* Delete button - z-10 (below header z-50) */}
+                  {/* Delete button - top right, z-10 */}
                   <button
                     onClick={(e) => handleDeleteEntry(e, entry.id)}
                     className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/80 backdrop-blur-sm hover:bg-red-600 flex items-center justify-center transition-colors z-10"
@@ -303,6 +316,12 @@ function Calendar() {
   );
 }
 
+/**
+ * VideoLoopPreview Component
+ * 
+ * Displays a 5-second looping preview of entry video
+ * Falls back to gradient placeholder if no media URL
+ */
 function VideoLoopPreview({ entry }) {
   const videoRef = useRef(null);
   useVideoLoop(videoRef, entry.mediaUrl, 5);
