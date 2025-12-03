@@ -22,6 +22,7 @@ import { formatTime } from '../utils/dateHelpers';
  * - Max recording duration: 5 minutes (300 seconds)
  * - Reliable upload with retry via upload queue
  * - Auto-stop and save at max duration
+ * - Optimized for 720p30fps recording
  * 
  * Recording functionality:
  * - Attaches to the static record button in Navigation.jsx via DOM manipulation
@@ -54,6 +55,7 @@ function Home() {
   /**
    * Initialize camera preview
    * Request user media with video and audio
+   * Optimized for 720p30fps - best balance of quality and performance
    */
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -63,10 +65,15 @@ function Home() {
         const mediaStream = await navigator.mediaDevices.getUserMedia({
           video: { 
             facingMode: 'user',
-            width: { ideal: 1920 },
-            height: { ideal: 1080 }
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            frameRate: { ideal: 30, max: 30 }
           },
-          audio: true
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          }
         });
         setStream(mediaStream);
       } catch (err) {
@@ -190,6 +197,7 @@ function Home() {
   /**
    * Start recording video
    * Sets up MediaRecorder and starts capturing chunks
+   * Optimized bitrate for 720p30fps
    */
   const startRecording = () => {
     if (!stream || recording) return;
@@ -199,7 +207,7 @@ function Home() {
       
       const mediaRecorder = new MediaRecorder(stream, {
         mimeType: 'video/webm;codecs=vp8,opus',
-        videoBitsPerSecond: 2500000,
+        videoBitsPerSecond: 1500000, // 1.5Mbps - optimal for 720p
       });
 
       mediaRecorder.ondataavailable = (event) => {
