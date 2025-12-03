@@ -1,6 +1,7 @@
 import { storage } from './storage';
 import { uploadVideo, generateThumbnail } from './r2';
 import { supabase } from './supabase';
+import useEntriesStore from '../stores/entries';
 
 /**
  * Upload Queue Service
@@ -10,6 +11,7 @@ import { supabase } from './supabase';
  * - Retries failed uploads with exponential backoff
  * - Processes queue on app startup
  * - Never loses recordings
+ * - Updates entries store after successful upload for immediate UI sync
  * 
  * Upload states:
  * - pending: Waiting to upload or retry
@@ -142,6 +144,25 @@ class UploadQueue {
       this.notifyListeners();
 
       console.log('✅ Upload completed:', itemId);
+
+      // Add entry to store for immediate UI update (no page refresh needed)
+      const newEntry = {
+        id: data.id,
+        userId: data.user_id,
+        videoUrl: data.video_url,
+        mediaUrl: data.video_url,
+        thumbnailUrl: data.thumbnail_url,
+        duration: data.duration,
+        fileSize: data.file_size,
+        transcription: data.transcription || '',
+        tags: data.tags || [],
+        type: data.type || 'video',
+        storageType: data.storage_type || 'cloud',
+        recordedAt: data.recorded_at,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at,
+      };
+      useEntriesStore.getState().addEntryToState(newEntry);
 
       // Clean up: Remove from IndexedDB after successful upload
       await storage.deleteUploadQueueItem(itemId);
