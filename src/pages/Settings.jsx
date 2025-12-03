@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Moon, Sun, LogOut, User } from 'lucide-react';
 import { useTheme } from 'next-themes';
+import StoragePanel from '../components/StoragePanel';
 
 /**
  * Settings Page
@@ -58,6 +59,9 @@ function Settings() {
         </Card>
       )}
 
+      {/* Storage Panel */}
+      {isAuthenticated && <StoragePanel />}
+
       {/* Appearance Settings */}
       <Card>
         <CardHeader>
@@ -95,56 +99,48 @@ function Settings() {
         </CardContent>
       </Card>
 
-      {/* Recording Settings */}
+      {/* Video Settings */}
       <Card>
         <CardHeader>
-          <CardTitle>Recording</CardTitle>
+          <CardTitle>Video Settings</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Video Quality */}
           <div>
-            <label className="text-sm font-medium mb-2 block">Video Quality</label>
-            <div className="flex gap-2">
-              {['low', 'medium', 'high'].map((quality) => (
-                <Button
-                  key={quality}
-                  variant={videoQuality === quality ? 'default' : 'outline'}
-                  onClick={() => updateSetting('videoQuality', quality)}
-                  className="flex-1 capitalize"
-                >
-                  {quality}
-                </Button>
-              ))}
-            </div>
-          </div>
-
-          {/* Max Duration */}
-          <div>
-            <label className="text-sm font-medium mb-2 block">Maximum Duration</label>
-            <div className="flex gap-2">
-              {[60, 180, 300, 600].map((seconds) => (
-                <Button
-                  key={seconds}
-                  variant={maxVideoDuration === seconds ? 'default' : 'outline'}
-                  onClick={() => updateSetting('maxVideoDuration', seconds)}
-                  className="flex-1"
-                >
-                  {seconds / 60} min
-                </Button>
-              ))}
-            </div>
-          </div>
-
-          {/* Audio Only */}
-          <div>
-            <label className="text-sm font-medium mb-2 block">Recording Mode</label>
-            <Button
-              variant={audioOnly ? 'default' : 'outline'}
-              onClick={() => updateSetting('audioOnly', !audioOnly)}
-              className="w-full"
+            <label className="text-sm font-medium mb-2 block">Quality</label>
+            <select
+              value={videoQuality}
+              onChange={(e) => updateSetting('videoQuality', e.target.value)}
+              className="w-full p-2 border rounded-md bg-background"
             >
-              {audioOnly ? '🎤 Audio Only' : '📹 Video + Audio'}
-            </Button>
+              <option value="low">Low (saves storage)</option>
+              <option value="medium">Medium (balanced)</option>
+              <option value="high">High (best quality)</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium mb-2 block">
+              Max Duration: {maxVideoDuration / 60} minutes
+            </label>
+            <input
+              type="range"
+              min="60"
+              max="600"
+              step="60"
+              value={maxVideoDuration}
+              onChange={(e) => updateSetting('maxVideoDuration', parseInt(e.target.value))}
+              className="w-full"
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium">Audio Only Mode</label>
+            <input
+              type="checkbox"
+              checked={audioOnly}
+              onChange={(e) => updateSetting('audioOnly', e.target.checked)}
+              className="w-5 h-5"
+            />
           </div>
         </CardContent>
       </Card>
