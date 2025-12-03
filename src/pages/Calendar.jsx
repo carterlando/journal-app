@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { ChevronLeft, ChevronRight, X, Play, Trash2 } from 'lucide-react';
 import { Calendar as CalendarIcon } from 'lucide-react';
 import useEntriesStore from '../stores/entries';
 import ReelViewer from '../components/ReelViewer';
 import { formatTime } from '../utils/dateHelpers';
+import { useVideoLoop } from '../hooks/useVideoLoop';
 
 /**
  * Calendar Page - Redesigned
@@ -251,18 +252,12 @@ function Calendar() {
                   `}
                   style={selectedEntries.length === 1 ? { aspectRatio: '1' } : {}}
                 >
-                  {/* Thumbnail - clickable to open reel */}
+                  {/* Video Loop - clickable to open reel */}
                   <button
                     onClick={() => handleEntryClick(index)}
                     className="w-full h-full absolute inset-0 z-0"
                   >
-                    {entry.thumbnailUrl || entry.mediaUrl ? (
-                      <img src={entry.thumbnailUrl || entry.mediaUrl} alt="Entry" className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-violet-500/20 to-purple-500/20 flex items-center justify-center">
-                        <CalendarIcon className="w-12 h-12 text-muted-foreground/50" />
-                      </div>
-                    )}
+                    <VideoLoopPreview entry={entry} />
                   </button>
 
                   {/* Play button - z-10 */}
@@ -305,6 +300,30 @@ function Calendar() {
         <ReelViewer entries={selectedEntries} initialIndex={selectedIndex} onClose={() => setShowReel(false)} />
       )}
     </div>
+  );
+}
+
+function VideoLoopPreview({ entry }) {
+  const videoRef = useRef(null);
+  useVideoLoop(videoRef, entry.mediaUrl, 5);
+
+  if (!entry.mediaUrl) {
+    return (
+      <div className="w-full h-full bg-gradient-to-br from-violet-500/20 to-purple-500/20 flex items-center justify-center">
+        <CalendarIcon className="w-12 h-12 text-muted-foreground/50" />
+      </div>
+    );
+  }
+
+  return (
+    <video
+      ref={videoRef}
+      src={entry.mediaUrl}
+      muted
+      playsInline
+      preload="auto"
+      className="w-full h-full object-cover"
+    />
   );
 }
 
