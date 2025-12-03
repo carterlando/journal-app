@@ -1,7 +1,7 @@
+import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Calendar, Settings, Home } from 'lucide-react';
+import { Calendar, Settings } from 'lucide-react';
 import useAuthStore from '../stores/auth';
-import { useTheme } from 'next-themes';
 
 /**
  * Navigation Component
@@ -10,42 +10,89 @@ import { useTheme } from 'next-themes';
  * Shows: Calendar | Record Button | Settings
  * - Layout and design are defined here
  * - Record button functionality is handled by Home.jsx via DOM manipulation
- * - On non-home pages: Record button links to home with home icon
+ * - On non-home pages: REC button links to home and triggers recording
+ * - Frosted glass background on non-home pages
+ * - Active page icon uses accent color (violet)
+ * - Padding smoothly reduces on scroll
  */
 function Navigation() {
   const location = useLocation();
   const { isAuthenticated } = useAuthStore();
-  const { theme, systemTheme } = useTheme();
+  const [scrollProgress, setScrollProgress] = useState(0);
   
   const isHomePage = location.pathname === '/';
-  
-  // Determine if we're in light mode
-  const currentTheme = theme === 'system' ? systemTheme : theme;
-  const isLightMode = currentTheme === 'light';
+  const isCalendarPage = location.pathname === '/calendar';
+  const isSettingsPage = location.pathname === '/settings';
+
+  /**
+   * Track scroll position and calculate shrink progress
+   * 0 = fully expanded, 1 = fully compact
+   */
+  useEffect(() => {
+    // Don't apply scroll behavior on home page (full screen camera)
+    if (isHomePage) {
+      setScrollProgress(0);
+      return;
+    }
+
+    let ticking = false;
+    const maxScroll = 100; // Pixels to scroll for full compact
+
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const progress = Math.min(window.scrollY / maxScroll, 1);
+          setScrollProgress(progress);
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [isHomePage]);
 
   if (!isAuthenticated) {
     return null;
   }
 
+  // Interpolate padding based on scroll progress
+  const lerp = (start, end, progress) => start + (end - start) * progress;
+  const paddingBottom = lerp(32, 12, scrollProgress); // Match homepage at expanded, equal at compact
+  const paddingTop = lerp(16, 12, scrollProgress); // Shrinks to match bottom at compact
+
   return (
     <>
       {/* Bottom Navigation - Fixed to bottom of viewport */}
-      <div className="fixed bottom-0 left-0 right-0 pb-8" style={{ zIndex: 20 }}>
+      <div 
+        className={`fixed bottom-0 left-0 right-0 ${
+          isHomePage 
+            ? '' 
+            : 'bg-background/60 backdrop-blur-xl border-t border-border/30'
+        }`}
+        style={{ 
+          zIndex: 20,
+          paddingBottom: isHomePage ? 32 : paddingBottom,
+          paddingTop: isHomePage ? 0 : paddingTop,
+        }}
+      >
         <div className="flex items-center justify-center gap-16 px-6">
           {/* Calendar Icon */}
           <Link
             to="/calendar"
-            className={`w-12 h-12 flex items-center justify-center rounded-full transition-colors ${
-              isHomePage 
-                ? 'hover:bg-black/20' 
-                : isLightMode 
-                  ? 'bg-black/80 hover:bg-black/90' 
-                  : 'hover:bg-black/20'
-            }`}
+            className="w-12 h-12 flex items-center justify-center"
           >
-            <Calendar className={`w-7 h-7 drop-shadow-lg ${
-              isHomePage || isLightMode ? 'text-white' : 'text-white'
-            }`} strokeWidth={1.5} />
+            <Calendar 
+              className={`w-7 h-7 ${
+                isHomePage 
+                  ? 'text-white drop-shadow-lg' 
+                  : isCalendarPage 
+                    ? 'text-violet-500' 
+                    : 'text-muted-foreground'
+              }`}
+              strokeWidth={1.5} 
+            />
           </Link>
 
           {/* Record Button - Static design, functionality added by Home.jsx */}
@@ -108,26 +155,33 @@ function Navigation() {
               </div>
             </button>
           ) : (
-            // On other pages: link to home with home icon (no outer ring)
+            // On other pages: link to home with auto-record (same design as homepage but red)
             <Link
-              to="/"
+              to="/?record=true"
               className="relative"
             >
+              {/* Red border ring - same structure as homepage */}
+              <svg
+                className="absolute top-0 left-0 w-20 h-20"
+                style={{ zIndex: 1 }}
+              >
+                <circle
+                  cx="40"
+                  cy="40"
+                  r="36"
+                  stroke="#dc2626"
+                  strokeWidth="4"
+                  fill="none"
+                  opacity="0.5"
+                />
+              </svg>
+              
+              {/* Red inner circle - same size as homepage white circle */}
               <div 
                 className="w-20 h-20 rounded-full flex items-center justify-center"
                 style={{ position: 'relative', zIndex: 2 }}
               >
-                <div 
-                  className="flex items-center justify-center"
-                  style={{
-                    width: '4rem',
-                    height: '4rem',
-                    borderRadius: '50%',
-                    backgroundColor: 'white',
-                  }}
-                >
-                  <Home className="w-8 h-8 text-black" strokeWidth={1.5} />
-                </div>
+                <div className="w-16 h-16 rounded-full bg-red-600" />
               </div>
             </Link>
           )}
@@ -135,17 +189,18 @@ function Navigation() {
           {/* Settings Icon */}
           <Link
             to="/settings"
-            className={`w-12 h-12 flex items-center justify-center rounded-full transition-colors ${
-              isHomePage 
-                ? 'hover:bg-black/20' 
-                : isLightMode 
-                  ? 'bg-black/80 hover:bg-black/90' 
-                  : 'hover:bg-black/20'
-            }`}
+            className="w-12 h-12 flex items-center justify-center"
           >
-            <Settings className={`w-7 h-7 drop-shadow-lg ${
-              isHomePage || isLightMode ? 'text-white' : 'text-white'
-            }`} strokeWidth={1.5} />
+            <Settings 
+              className={`w-7 h-7 ${
+                isHomePage 
+                  ? 'text-white drop-shadow-lg' 
+                  : isSettingsPage 
+                    ? 'text-violet-500' 
+                    : 'text-muted-foreground'
+              }`}
+              strokeWidth={1.5} 
+            />
           </Link>
         </div>
       </div>
