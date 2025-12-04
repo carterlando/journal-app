@@ -266,12 +266,16 @@ function Home() {
       setRecordingTime(0);
 
       // Start timer and auto-stop at MAX_DURATION
+      // Start timer and auto-stop at MAX_DURATION
       timerRef.current = setInterval(() => {
         setRecordingTime((prev) => {
           const newTime = prev + 1;
           // Auto-stop at max duration
           if (newTime >= MAX_DURATION) {
             if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+              // Store duration before stopping (same as manual stopRecording)
+              chunksRef.current.finalDuration = MAX_DURATION;
+              console.log('Auto-stop at max duration. Duration:', MAX_DURATION);
               mediaRecorderRef.current.stop();
               setRecording(false);
               clearInterval(timerRef.current);
