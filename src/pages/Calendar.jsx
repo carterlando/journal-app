@@ -10,11 +10,11 @@ import { useVideoLoop } from '../hooks/useVideoLoop';
  * Calendar Page - Redesigned
  * 
  * Features:
- * - Week selector with entry indicators
- * - Month picker overlay for date navigation
+ * - Week selector with month button and entry indicators
+ * - Horizontal swipe to navigate weeks
+ * - Month picker overlay with swipe navigation
  * - Video entry previews with loop playback
  * - Reel viewer for full-screen playback
- * - Frosted glass header
  */
 function Calendar() {
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -23,10 +23,15 @@ function Calendar() {
   const [showReel, setShowReel] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const { entries, deleteEntry } = useEntriesStore();
+  
+  // Swipe tracking
+  const touchStartX = useRef(0);
+  const touchStartY = useRef(0);
 
   // Constants
   const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const monthNamesShort = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 
   /**
    * Get array of dates for the current week (Mon-Sun)
@@ -50,6 +55,94 @@ function Calendar() {
   };
 
   const weekDays = getWeekDays();
+
+  /**
+   * Navigate to previous week
+   */
+  const previousWeek = () => {
+    const newDate = new Date(selectedDate);
+    newDate.setDate(newDate.getDate() - 7);
+    setSelectedDate(newDate);
+  };
+
+  /**
+   * Navigate to next week
+   */
+  const nextWeek = () => {
+    const newDate = new Date(selectedDate);
+    newDate.setDate(newDate.getDate() + 7);
+    setSelectedDate(newDate);
+  };
+
+  /**
+   * Navigate to previous day
+   */
+  const previousDay = () => {
+    const newDate = new Date(selectedDate);
+    newDate.setDate(newDate.getDate() - 1);
+    setSelectedDate(newDate);
+  };
+
+  /**
+   * Navigate to next day
+   */
+  const nextDay = () => {
+    const newDate = new Date(selectedDate);
+    newDate.setDate(newDate.getDate() + 1);
+    setSelectedDate(newDate);
+  };
+
+  /**
+   * Handle swipe start
+   */
+  const handleTouchStart = (e) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  /**
+   * Handle swipe end - navigate days
+   */
+  const handleTouchEnd = (e) => {
+    const touchEndX = e.changedTouches[0].clientX;
+    const touchEndY = e.changedTouches[0].clientY;
+    const diffX = touchStartX.current - touchEndX;
+    const diffY = touchStartY.current - touchEndY;
+
+    // Only handle horizontal swipes
+    if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 50) {
+      if (diffX > 0) {
+        // Swipe left - next day
+        nextDay();
+      } else {
+        // Swipe right - previous day
+        previousDay();
+      }
+    }
+  };
+
+  /**
+   * Handle month picker swipe start
+   */
+  const handleMonthTouchStart = (e) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+
+  /**
+   * Handle month picker swipe end
+   */
+  const handleMonthTouchEnd = (e) => {
+    const touchEndX = e.changedTouches[0].clientX;
+    const diff = touchStartX.current - touchEndX;
+
+    if (Math.abs(diff) > 50) {
+      if (diff > 0) {
+        nextMonth();
+      } else {
+        previousMonth();
+      }
+    }
+  };
 
   /**
    * Filter entries for a specific date
@@ -145,91 +238,33 @@ function Calendar() {
     setMonthPickerDate(new Date(monthPickerDate.getFullYear(), monthPickerDate.getMonth() + 1));
   };
 
+  /**
+   * Open month picker and sync to selected date's month
+   */
+  const openMonthPicker = () => {
+    setMonthPickerDate(new Date(selectedDate));
+    setShowMonthPicker(true);
+  };
+
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header - z-50, frosted glass background */}
-      <div className="sticky top-0 z-50 bg-background/60 backdrop-blur-xl border-b border-border/30">
-        <div className="px-3 py-4 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-foreground">
-            {monthNames[selectedDate.getMonth()]} {selectedDate.getDate()}, {selectedDate.getFullYear()}
-          </h2>
-          <button 
-            onClick={() => setShowMonthPicker(!showMonthPicker)}
-            className="w-10 h-10 rounded-xl bg-muted hover:bg-muted/80 flex items-center justify-center transition-colors mr-0.5"
+    <div 
+      className="min-h-screen bg-background"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
+      <div className="px-3 pb-32 pt-4">
+        {/* Week Selector with Month Button */}
+        <div className="flex gap-1">
+          {/* Month/Year Button */}
+          <button
+            onClick={openMonthPicker}
+            className="flex-1 flex flex-col items-center justify-center h-14 rounded-2xl transition-all bg-violet-500 text-white"
           >
-            <CalendarIcon className="w-5 h-5 text-foreground" />
+            <span className="text-[11px] font-bold">{monthNamesShort[selectedDate.getMonth()]}</span>
+            <span className="text-[11px] font-bold">{selectedDate.getFullYear()}</span>
           </button>
-        </div>
-      </div>
 
-      {/* Month Picker */}
-      {showMonthPicker && (
-        <div className="fixed inset-0 bg-background z-50 overflow-y-auto">
-          <div className="sticky top-0 bg-background/60 backdrop-blur-xl border-b border-border/30">
-            <div className="px-3 py-4 flex items-center justify-between">
-              {/* Month/Year on the left with navigation arrows - fixed width container */}
-              <div className="flex items-center gap-3">
-                <h2 className="text-xl font-bold text-foreground min-w-[150px]">
-                  {monthNames[monthPickerDate.getMonth()]} {monthPickerDate.getFullYear()}
-                </h2>
-                <div className="flex items-center gap-1">
-                  <button onClick={previousMonth} className="w-9 h-9 rounded-full hover:bg-muted flex items-center justify-center">
-                    <ChevronLeft className="w-5 h-5" />
-                  </button>
-                  <button onClick={nextMonth} className="w-9 h-9 rounded-full hover:bg-muted flex items-center justify-center">
-                    <ChevronRight className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-              <button onClick={() => setShowMonthPicker(false)} className="w-10 h-10 rounded-full hover:bg-muted flex items-center justify-center">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-
-          <div className="px-3 py-6">
-            <div className="grid grid-cols-7 gap-1 mb-2">
-              {dayNames.map(day => (
-                <div key={day} className="text-center text-xs font-medium text-muted-foreground py-2">
-                  {day.slice(0, 1)}
-                </div>
-              ))}
-            </div>
-
-            <div className="grid grid-cols-7 gap-1">
-              {getMonthCalendarDays().map((day, index) => {
-                if (!day) return <div key={index} className="aspect-square" />;
-
-                const date = new Date(monthPickerDate.getFullYear(), monthPickerDate.getMonth(), day);
-                const selected = isSelected(date);
-                const today = isToday(date);
-                const hasEntries = getEntriesForDate(date).length > 0;
-
-                return (
-                  <button
-                    key={index}
-                    onClick={() => handleMonthDayClick(day)}
-                    className={`
-                      aspect-square rounded-2xl text-sm font-medium transition-all relative
-                      ${selected ? 'bg-foreground text-background' : 'text-foreground hover:bg-muted'}
-                      ${today && !selected ? 'ring-2 ring-violet-400' : ''}
-                    `}
-                  >
-                    {day}
-                    {hasEntries && !selected && (
-                      <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-violet-400" />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="px-3 pb-32">
-        {/* Week Selector */}
-        <div className="mt-4 flex gap-1">
+          {/* Day Buttons */}
           {weekDays.map((day, index) => {
             const dayEntries = getEntriesForDate(day);
             const hasEntries = dayEntries.length > 0;
@@ -308,9 +343,82 @@ function Calendar() {
         </div>
       </div>
 
-      {/* Reel Viewer */}
+      {/* Month Picker - Swipeable */}
+      {showMonthPicker && (
+        <div 
+          className="fixed inset-0 bg-background z-50 overflow-y-auto"
+          onTouchStart={handleMonthTouchStart}
+          onTouchEnd={handleMonthTouchEnd}
+        >
+          <div className="sticky top-0 bg-background/60 backdrop-blur-xl border-b border-border/30">
+            <div className="px-3 py-4 flex items-center justify-between">
+              {/* Month/Year on the left with navigation arrows */}
+              <div className="flex items-center gap-3">
+                <h2 className="text-xl font-bold text-foreground min-w-[150px]">
+                  {monthNames[monthPickerDate.getMonth()]} {monthPickerDate.getFullYear()}
+                </h2>
+                <div className="flex items-center gap-1">
+                  <button onClick={previousMonth} className="w-9 h-9 rounded-full hover:bg-muted flex items-center justify-center">
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
+                  <button onClick={nextMonth} className="w-9 h-9 rounded-full hover:bg-muted flex items-center justify-center">
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+              <button onClick={() => setShowMonthPicker(false)} className="w-10 h-10 rounded-full hover:bg-muted flex items-center justify-center">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          <div className="px-3 py-6">
+            <div className="grid grid-cols-7 gap-1 mb-2">
+              {dayNames.map(day => (
+                <div key={day} className="text-center text-xs font-medium text-muted-foreground py-2">
+                  {day.slice(0, 1)}
+                </div>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-7 gap-1">
+              {getMonthCalendarDays().map((day, index) => {
+                if (!day) return <div key={index} className="aspect-square" />;
+
+                const date = new Date(monthPickerDate.getFullYear(), monthPickerDate.getMonth(), day);
+                const selected = isSelected(date);
+                const today = isToday(date);
+                const hasEntries = getEntriesForDate(date).length > 0;
+
+                return (
+                  <button
+                    key={index}
+                    onClick={() => handleMonthDayClick(day)}
+                    className={`
+                      aspect-square rounded-2xl text-sm font-medium transition-all relative
+                      ${selected ? 'bg-foreground text-background' : 'text-foreground hover:bg-muted'}
+                      ${today && !selected ? 'ring-2 ring-violet-400' : ''}
+                    `}
+                  >
+                    {day}
+                    {hasEntries && !selected && (
+                      <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-violet-400" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reel Viewer - Pass all entries for swipe navigation between days */}
       {showReel && selectedEntries.length > 0 && (
-        <ReelViewer entries={selectedEntries} initialIndex={selectedIndex} onClose={() => setShowReel(false)} />
+        <ReelViewer 
+          entries={entries} 
+          initialIndex={entries.findIndex(e => e.id === selectedEntries[selectedIndex]?.id)} 
+          onClose={() => setShowReel(false)} 
+        />
       )}
     </div>
   );
