@@ -8,6 +8,18 @@ import ProtectedRoute from './components/ProtectedRoute';
 import { ThemeProvider } from './components/ThemeProvider';
 import { uploadQueue } from './services/uploadQueue';
 
+// Handle chunk loading errors (stale cache after deploy)
+window.addEventListener('error', (event) => {
+  if (
+    event.message?.includes('Failed to fetch dynamically imported module') ||
+    event.message?.includes('Loading chunk') ||
+    event.message?.includes('Loading CSS chunk')
+  ) {
+    // Clear cache and reload
+    window.location.reload();
+  }
+});
+
 // Lazy load pages for better performance
 const Home = lazy(() => import('./pages/Home'));
 const Calendar = lazy(() => import('./pages/Calendar'));
