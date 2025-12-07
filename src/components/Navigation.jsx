@@ -172,7 +172,7 @@ function Navigation() {
                   stroke="#dc2626"
                   strokeWidth="4"
                   fill="none"
-                  opacity="0.5"
+                  opacity="0.4"
                 />
               </svg>
               
