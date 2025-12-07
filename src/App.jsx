@@ -7,6 +7,7 @@ import Navigation from './components/Navigation';
 import ProtectedRoute from './components/ProtectedRoute';
 import { ThemeProvider } from './components/ThemeProvider';
 import { uploadQueue } from './services/uploadQueue';
+import { storage } from './services/storage';
 
 // Handle chunk loading errors (stale cache after deploy)
 window.addEventListener('error', (event) => {
@@ -44,7 +45,6 @@ function App() {
     const initialize = async () => {
       try {
         // Initialize storage system (IndexedDB)
-        const { storage } = await import('./services/storage');
         await storage.init();
         
         // Initialize auth
