@@ -1,149 +1,205 @@
-import useSettingsStore from '../stores/settings';
-import useAuthStore from '../stores/auth';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Moon, Sun, LogOut, User } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Moon, Sun, LogOut, User, HardDrive } from 'lucide-react';
 import { useTheme } from 'next-themes';
-import StoragePanel from '../components/StoragePanel';
+import useAuthStore from '../stores/auth';
+import { getUserStorageUsage } from '../services/r2Storage';
 
 /**
  * Settings Page
+ * 
+ * Clean, minimal settings matching app design
+ * - Account details with sign out
+ * - Storage usage display
+ * - Light/dark theme toggle
  */
 function Settings() {
-  const { 
-    videoQuality, 
-    maxVideoDuration, 
-    audioOnly,
-    updateSetting 
-  } = useSettingsStore();
-
   const { theme, setTheme } = useTheme();
-  const { isAuthenticated, user, logout } = useAuthStore();
+  const { user, logout } = useAuthStore();
+  
+  // Storage state
+  const [usage, setUsage] = useState(null);
+  const [storageLoading, setStorageLoading] = useState(true);
+  const [storageError, setStorageError] = useState(null);
+
+  const FREE_PLAN_LIMIT = 10 * 1024 * 1024 * 1024; // 10 GB
+
+  /**
+   * Format bytes to GB with 2 decimal places
+   * Always displays in GB for consistency
+   */
+  const formatToGB = (bytes) => {
+    const gb = bytes / (1024 * 1024 * 1024);
+    return `${gb.toFixed(2)} GB`;
+  };
+
+  /**
+   * Fetch storage usage on mount
+   */
+  useEffect(() => {
+    const fetchUsage = async () => {
+      if (!user) {
+        setStorageLoading(false);
+        return;
+      }
+
+      try {
+        setStorageLoading(true);
+        setStorageError(null);
+        const data = await getUserStorageUsage(user.id);
+        setUsage(data);
+      } catch (err) {
+        console.error('Failed to fetch storage usage:', err);
+        setStorageError('Unable to load storage info');
+      } finally {
+        setStorageLoading(false);
+      }
+    };
+
+    fetchUsage();
+  }, [user]);
+
+  const usedBytes = usage?.bytes || 0;
+  const usedPercent = (usedBytes / FREE_PLAN_LIMIT) * 100;
+  const remainingBytes = FREE_PLAN_LIMIT - usedBytes;
+
+  /**
+   * Handle sign out
+   */
+  const handleLogout = async () => {
+    if (window.confirm('Sign out of your account?')) {
+      await logout();
+    }
+  };
 
   return (
-    <div className="space-y-6">
-      {/* Mobile Header */}
-      <div className="md:hidden sticky top-0 bg-card border-b border-border z-10 px-4 py-3">
-        <h1 className="text-xl font-bold text-foreground">Settings</h1>
-      </div>
+    <div className="min-h-screen bg-background">
+      <div className="px-4 pb-32 pt-6">
+        {/* Header */}
+        <h1 className="text-2xl font-bold text-foreground mb-6">Settings</h1>
 
-      {/* Desktop Header */}
-      <div className="hidden md:block">
-        <h1 className="text-3xl font-bold text-foreground">Settings</h1>
-        <p className="text-muted-foreground">Manage your preferences</p>
-      </div>
-
-      {/* Account Section - Only show on mobile when authenticated */}
-      {isAuthenticated && (
-        <Card className="md:hidden">
-          <CardHeader>
-            <CardTitle>Account</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center gap-3 p-3 bg-primary/5 rounded-lg">
-              <User className="w-5 h-5 text-primary" />
+        {/* Account Section */}
+        <div className="mb-8">
+          <h2 className="text-sm font-medium text-muted-foreground mb-3 px-1">ACCOUNT</h2>
+          <div className="bg-card rounded-2xl overflow-hidden">
+            {/* User Info */}
+            <div className="flex items-center gap-3 p-4 border-b border-border">
+              <div className="w-12 h-12 rounded-full bg-violet-500 flex items-center justify-center">
+                <User className="w-6 h-6 text-white" />
+              </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium">Signed in as</p>
-                <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+                <p className="text-sm text-muted-foreground">Signed in as</p>
+                <p className="text-base font-medium text-foreground truncate">{user?.email}</p>
               </div>
             </div>
-            <Button
-              variant="outline"
-              onClick={logout}
-              className="w-full"
+            
+            {/* Sign Out */}
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center gap-3 p-4 text-red-500 hover:bg-muted/50 transition-colors"
             >
-              <LogOut className="mr-2 h-4 w-4" />
-              Sign Out
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+              <LogOut className="w-5 h-5" />
+              <span className="font-medium">Sign Out</span>
+            </button>
+          </div>
+        </div>
 
-      {/* Storage Panel */}
-      {isAuthenticated && <StoragePanel />}
+        {/* Storage Section */}
+        <div className="mb-8">
+          <h2 className="text-sm font-medium text-muted-foreground mb-3 px-1">STORAGE</h2>
+          <div className="bg-card rounded-2xl p-4">
+            {storageLoading ? (
+              <div className="flex items-center justify-center py-4">
+                <div className="w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : storageError ? (
+              <p className="text-sm text-red-500 text-center py-4">{storageError}</p>
+            ) : (
+              <>
+                {/* Storage Icon and Stats */}
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="w-12 h-12 rounded-full bg-violet-500/10 flex items-center justify-center">
+                    <HardDrive className="w-6 h-6 text-violet-500" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-foreground">{formatToGB(usedBytes)}</p>
+                    <p className="text-sm text-muted-foreground">of {formatToGB(FREE_PLAN_LIMIT)} used</p>
+                  </div>
+                </div>
 
-      {/* Appearance Settings */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Appearance</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <label className="text-sm font-medium mb-2 block">Theme</label>
+                {/* Progress Bar */}
+                <div className="mb-3">
+                  <div className="h-2 bg-muted rounded-full overflow-hidden">
+                    <div 
+                      className={`h-full transition-all duration-300 ${
+                        usedPercent > 90 ? 'bg-red-500' : 
+                        usedPercent > 75 ? 'bg-yellow-500' : 
+                        'bg-violet-500'
+                      }`}
+                      style={{ width: `${Math.min(usedPercent, 100)}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Stats Row */}
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">{usage?.count || 0} videos</span>
+                  <span className="text-muted-foreground">{formatToGB(remainingBytes)} available</span>
+                </div>
+
+                {/* Warning */}
+                {usedPercent > 80 && (
+                  <div className={`mt-4 text-sm p-3 rounded-xl ${
+                    usedPercent > 90 
+                      ? 'bg-red-500/10 text-red-500' 
+                      : 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-500'
+                  }`}>
+                    {usedPercent > 90 
+                      ? '⚠️ Storage almost full. Delete old entries to free space.'
+                      : '📊 Storage getting full. Monitor your usage.'}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Appearance Section */}
+        <div className="mb-8">
+          <h2 className="text-sm font-medium text-muted-foreground mb-3 px-1">APPEARANCE</h2>
+          <div className="bg-card rounded-2xl p-4">
+            <p className="text-sm text-muted-foreground mb-3">Theme</p>
             <div className="flex gap-2">
-              <Button
-                variant={theme === 'light' ? 'default' : 'outline'}
+              <button
                 onClick={() => setTheme('light')}
-                className="flex-1"
+                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-medium transition-all ${
+                  theme === 'light'
+                    ? 'bg-foreground text-background'
+                    : 'bg-muted text-foreground hover:bg-muted/80'
+                }`}
               >
-                <Sun className="mr-2 h-4 w-4" />
+                <Sun className="w-5 h-5" />
                 Light
-              </Button>
-              <Button
-                variant={theme === 'dark' ? 'default' : 'outline'}
+              </button>
+              <button
                 onClick={() => setTheme('dark')}
-                className="flex-1"
+                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-medium transition-all ${
+                  theme === 'dark'
+                    ? 'bg-foreground text-background'
+                    : 'bg-muted text-foreground hover:bg-muted/80'
+                }`}
               >
-                <Moon className="mr-2 h-4 w-4" />
+                <Moon className="w-5 h-5" />
                 Dark
-              </Button>
-              <Button
-                variant={theme === 'system' ? 'default' : 'outline'}
-                onClick={() => setTheme('system')}
-                className="flex-1"
-              >
-                System
-              </Button>
+              </button>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      {/* Video Settings */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Video Settings</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <label className="text-sm font-medium mb-2 block">Quality</label>
-            <select
-              value={videoQuality}
-              onChange={(e) => updateSetting('videoQuality', e.target.value)}
-              className="w-full p-2 border rounded-md bg-background"
-            >
-              <option value="low">Low (saves storage)</option>
-              <option value="medium">Medium (balanced)</option>
-              <option value="high">High (best quality)</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="text-sm font-medium mb-2 block">
-              Max Duration: {maxVideoDuration / 60} minutes
-            </label>
-            <input
-              type="range"
-              min="60"
-              max="600"
-              step="60"
-              value={maxVideoDuration}
-              onChange={(e) => updateSetting('maxVideoDuration', parseInt(e.target.value))}
-              className="w-full"
-            />
-          </div>
-
-          <div className="flex items-center justify-between">
-            <label className="text-sm font-medium">Audio Only Mode</label>
-            <input
-              type="checkbox"
-              checked={audioOnly}
-              onChange={(e) => updateSetting('audioOnly', e.target.checked)}
-              className="w-5 h-5"
-            />
-          </div>
-        </CardContent>
-      </Card>
+        {/* App Version */}
+        <div className="text-center text-sm text-muted-foreground">
+          <p>Story Time v1.0.0</p>
+        </div>
+      </div>
     </div>
   );
 }
