@@ -141,19 +141,22 @@ function Home() {
   useVideoLoop(memoryVideoRef, memoryEntry?.mediaUrl, 3);
 
   /**
-   * Find memory entry using cascading search
-   * Shows video from same date in previous years
+   * Find memory entry using server-side search
+   * Queries Supabase directly for better performance
    */
   useEffect(() => {
-    if (!isAuthenticated || loading || entries.length === 0 || memoryCalculated) {
+    if (!isAuthenticated || !user || memoryCalculated) {
       return;
     }
 
-    const today = new Date();
-    const foundEntry = findMemoryEntry(entries, today);
-    setMemoryEntry(foundEntry);
-    setMemoryCalculated(true);
-  }, [isAuthenticated, entries, loading, memoryCalculated]);
+    const fetchMemory = async () => {
+      const foundEntry = await findMemoryEntry(user.id);
+      setMemoryEntry(foundEntry);
+      setMemoryCalculated(true);
+    };
+
+    fetchMemory();
+  }, [isAuthenticated, user, memoryCalculated]);
 
   /**
    * Attach record button functionality to Navigation's static button
