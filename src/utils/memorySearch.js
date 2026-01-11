@@ -6,11 +6,10 @@ import { supabase } from '../services/supabase';
  * Server-side search for "Remember this day" entries
  * Queries Supabase directly instead of loading all entries client-side
  * 
- * Cascading search algorithm:
- * 1. Exact day match (same day/month, earlier year)
- * 2. ±7 days match (same week range, earlier year)  
- * 3. Same month match (earlier year)
- * 4. Random past entry (fallback)
+ * Simplified algorithm:
+ * 1. Exact day match from exactly 1 year ago (same month/day, previous year)
+ * 2. Exact day match from exactly 1 month ago (same day, previous month)
+ * 3. Nothing (no fallbacks)
  */
 
 /**
@@ -36,8 +35,8 @@ const formatEntry = (entry) => ({
 });
 
 /**
- * Find memory entry from Supabase using server-side filtering
- * Much faster than loading all entries and filtering client-side
+ * Find memory entry from Supabase
+ * Only returns entries from exactly 1 year ago or exactly 1 month ago
  * 
  * @param {string} userId - User ID
  * @returns {Promise<Object|null>} Memory entry or null
@@ -46,101 +45,78 @@ export const findMemoryEntry = async (userId) => {
   if (!userId) return null;
 
   const today = new Date();
-  const currentMonth = today.getMonth() + 1; // 1-12
-  const currentDay = today.getDate();
   const currentYear = today.getFullYear();
+  const currentMonth = today.getMonth(); // 0-11
+  const currentDay = today.getDate();
 
   try {
-    // Query past entries, limited for performance
-    const { data: pastEntries, error } = await supabase
+    // 1. CHECK FOR ENTRY FROM EXACTLY 1 YEAR AGO
+    // Same month and day, but previous year
+    const oneYearAgo = new Date(currentYear - 1, currentMonth, currentDay);
+    const oneYearAgoStart = new Date(oneYearAgo);
+    oneYearAgoStart.setHours(0, 0, 0, 0);
+    const oneYearAgoEnd = new Date(oneYearAgo);
+    oneYearAgoEnd.setHours(23, 59, 59, 999);
+
+    const { data: yearAgoEntries, error: yearError } = await supabase
       .from('entries')
       .select('*')
       .eq('user_id', userId)
-      .lt('recorded_at', `${currentYear}-01-01`) // Only previous years
+      .gte('recorded_at', oneYearAgoStart.toISOString())
+      .lte('recorded_at', oneYearAgoEnd.toISOString())
       .order('recorded_at', { ascending: false })
-      .limit(50);
+      .limit(10); // Get multiple if available, pick random
 
-    if (error) throw error;
+    if (yearError) throw yearError;
 
-    if (pastEntries && pastEntries.length > 0) {
-      // 1. EXACT DAY MATCH - Same month/day, previous years
-      const exactDayMatches = pastEntries.filter(entry => {
-        const entryDate = new Date(entry.recorded_at);
-        return (
-          entryDate.getMonth() + 1 === currentMonth &&
-          entryDate.getDate() === currentDay
-        );
-      });
-
-      if (exactDayMatches.length > 0) {
-        const randomIndex = Math.floor(Math.random() * exactDayMatches.length);
-        return formatEntry(exactDayMatches[randomIndex]);
-      }
-
-      // 2. ±7 DAYS MATCH - Same week range, previous years
-      const weekRangeMatches = pastEntries.filter(entry => {
-        const entryDate = new Date(entry.recorded_at);
-        const entryMonth = entryDate.getMonth() + 1;
-        const entryDay = entryDate.getDate();
-        
-        if (entryMonth === currentMonth) {
-          return Math.abs(entryDay - currentDay) <= 7;
-        }
-        
-        // Handle month boundaries
-        if (entryMonth === currentMonth - 1 || (currentMonth === 1 && entryMonth === 12)) {
-          if (currentDay <= 7 && entryDay >= 24) return true;
-        }
-        if (entryMonth === currentMonth + 1 || (currentMonth === 12 && entryMonth === 1)) {
-          if (currentDay >= 24 && entryDay <= 7) return true;
-        }
-        
-        return false;
-      });
-
-      if (weekRangeMatches.length > 0) {
-        const closest = weekRangeMatches.reduce((best, entry) => {
-          const entryDate = new Date(entry.recorded_at);
-          const bestDate = new Date(best.recorded_at);
-          const entryDayDiff = Math.abs(entryDate.getDate() - currentDay);
-          const bestDayDiff = Math.abs(bestDate.getDate() - currentDay);
-          return entryDayDiff < bestDayDiff ? entry : best;
-        });
-        return formatEntry(closest);
-      }
-
-      // 3. SAME MONTH MATCH - Any day in same month, previous years
-      const sameMonthMatches = pastEntries.filter(entry => {
-        const entryDate = new Date(entry.recorded_at);
-        return entryDate.getMonth() + 1 === currentMonth;
-      });
-
-      if (sameMonthMatches.length > 0) {
-        const randomIndex = Math.floor(Math.random() * sameMonthMatches.length);
-        return formatEntry(sameMonthMatches[randomIndex]);
-      }
-
-      // 4. RANDOM FALLBACK - Any past entry
-      const randomIndex = Math.floor(Math.random() * pastEntries.length);
-      return formatEntry(pastEntries[randomIndex]);
+    if (yearAgoEntries && yearAgoEntries.length > 0) {
+      // Pick random entry if multiple exist on that day
+      const randomIndex = Math.floor(Math.random() * yearAgoEntries.length);
+      console.log(`📅 Found ${yearAgoEntries.length} entry(ies) from 1 year ago (${oneYearAgo.toDateString()})`);
+      return formatEntry(yearAgoEntries[randomIndex]);
     }
 
-    // No entries from previous years, try any past entry (random)
-    const { data: anyPast, error: anyError } = await supabase
+    // 2. CHECK FOR ENTRY FROM EXACTLY 1 MONTH AGO
+    // Same day, but previous month (handles year boundary: Jan -> Dec of previous year)
+    let oneMonthAgoYear = currentYear;
+    let oneMonthAgoMonth = currentMonth - 1;
+    
+    // Handle year boundary (January -> December of previous year)
+    if (oneMonthAgoMonth < 0) {
+      oneMonthAgoMonth = 11; // December
+      oneMonthAgoYear = currentYear - 1;
+    }
+
+    // Handle days that don't exist in target month (e.g., Jan 31 -> Feb 28/29)
+    const daysInTargetMonth = new Date(oneMonthAgoYear, oneMonthAgoMonth + 1, 0).getDate();
+    const targetDay = Math.min(currentDay, daysInTargetMonth);
+
+    const oneMonthAgo = new Date(oneMonthAgoYear, oneMonthAgoMonth, targetDay);
+    const oneMonthAgoStart = new Date(oneMonthAgo);
+    oneMonthAgoStart.setHours(0, 0, 0, 0);
+    const oneMonthAgoEnd = new Date(oneMonthAgo);
+    oneMonthAgoEnd.setHours(23, 59, 59, 999);
+
+    const { data: monthAgoEntries, error: monthError } = await supabase
       .from('entries')
       .select('*')
       .eq('user_id', userId)
-      .lt('recorded_at', today.toISOString())
+      .gte('recorded_at', oneMonthAgoStart.toISOString())
+      .lte('recorded_at', oneMonthAgoEnd.toISOString())
       .order('recorded_at', { ascending: false })
-      .limit(50);
+      .limit(10); // Get multiple if available, pick random
 
-    if (anyError) throw anyError;
+    if (monthError) throw monthError;
 
-    if (anyPast && anyPast.length > 0) {
-      const randomIndex = Math.floor(Math.random() * anyPast.length);
-      return formatEntry(anyPast[randomIndex]);
+    if (monthAgoEntries && monthAgoEntries.length > 0) {
+      // Pick random entry if multiple exist on that day
+      const randomIndex = Math.floor(Math.random() * monthAgoEntries.length);
+      console.log(`📅 Found ${monthAgoEntries.length} entry(ies) from 1 month ago (${oneMonthAgo.toDateString()})`);
+      return formatEntry(monthAgoEntries[randomIndex]);
     }
 
+    // 3. NO MEMORY FOUND
+    console.log('📅 No memory found for today (neither 1 year ago nor 1 month ago)');
     return null;
 
   } catch (error) {
